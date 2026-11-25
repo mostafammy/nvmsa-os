@@ -11,7 +11,7 @@
     {
       "binding": "DB",
       "database_name": "nvmsa-os-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "1271c546-fe90-410c-b716-070882d6b3f6",
       "migrations_dir": "drizzle"
     }
   ],
