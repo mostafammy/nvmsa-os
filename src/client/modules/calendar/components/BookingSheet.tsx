@@ -12,7 +12,7 @@ import type {
   RelocateSlotInput,
   UpdateSlotInput,
 } from '@shared/types';
-import { formatShortDayLabel } from '@shared/utils';
+import { formatShortDayLabel, getTodayCairoDate } from '@shared/utils';
 import { useSession } from '../../../core/auth/useSession';
 import { Badge } from '../../../ui/Badge';
 import { BottomSheet } from '../../../ui/BottomSheet';
@@ -59,12 +59,17 @@ export function BookingSheet({
     user !== null &&
     (user.role === 'admin' || (isManagedSlot(slot) && slot.creatorId === user.id));
 
+  const todayCairo = getTodayCairoDate();
+  const isPastDate = selectedDate !== null && selectedDate < todayCairo;
+  const blockedPastBooking = !slot && isPastDate && user?.role !== 'admin';
+
   const [title, setTitle] = useState('');
   const [entityCode, setEntityCode] = useState<NvmsaEntityCode>('SCOPH');
   const [format, setFormat] = useState<PostFormat>('poster');
   const [notes, setNotes] = useState('');
   const [relocationReason, setRelocationReason] = useState('');
   const [showRelocateForm, setShowRelocateForm] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   useEffect(() => {
     if (slot) {
@@ -80,6 +85,7 @@ export function BookingSheet({
     }
     setRelocationReason('');
     setShowRelocateForm(false);
+    setConfirmCancel(false);
   }, [slot, selectedDate, user?.entityCode]);
 
   if (!selectedDate) return null;
@@ -96,12 +102,13 @@ export function BookingSheet({
         entityCode,
         format,
         notes: notes.trim() || null,
+        expectedVersion: isManagedSlot(slot) ? slot.version : undefined,
       });
       onClose();
       return;
     }
 
-    if (!slot && canBook) {
+    if (!slot && canBook && !blockedPastBooking) {
       await onBook({
         postDate: selectedDate,
         title: title.trim(),
@@ -116,7 +123,10 @@ export function BookingSheet({
   const handleQueueRelocation = async (event: FormEvent) => {
     event.preventDefault();
     if (!slot || !relocationReason.trim()) return;
-    await onQueueRelocation(slot.id, { reason: relocationReason.trim() });
+    await onQueueRelocation(slot.id, {
+      reason: relocationReason.trim(),
+      expectedVersion: isManagedSlot(slot) ? slot.version : undefined,
+    });
     onClose();
   };
 
@@ -155,6 +165,14 @@ export function BookingSheet({
           <p className="text-xs text-slate-500">
             Officers have read-only calendar access. Sign in as an EB Member or Admin to book a
             content slot.
+          </p>
+        </div>
+      ) : blockedPastBooking ? (
+        <div className="space-y-2 py-2 text-center">
+          <p className="text-sm font-semibold text-slate-800">Past Date Locked</p>
+          <p className="text-xs text-slate-500">
+            Bookings cannot be created on past Cairo dates ({selectedDate}). Contact an Admin if a
+            historical backfill is required.
           </p>
         </div>
       ) : (
@@ -229,29 +247,35 @@ export function BookingSheet({
 
           {slot && canEdit && (
             <div className="border-t border-slate-100 pt-3 space-y-2.5">
-              {!showRelocateForm ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={isBusy}
-                    onClick={() => setShowRelocateForm(true)}
-                  >
-                    Move to Queue
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    disabled={isBusy}
-                    onClick={async () => {
-                      await onCancel(slot.id);
-                      onClose();
-                    }}
-                  >
-                    Cancel Slot
-                  </Button>
+              {confirmCancel ? (
+                <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-3">
+                  <p className="text-xs font-semibold text-red-900">
+                    Cancel this booked slot? This immediately frees {selectedDate} for other
+                    committees.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      disabled={isBusy}
+                      className="flex-1"
+                      onClick={async () => {
+                        await onCancel(slot.id);
+                        onClose();
+                      }}
+                    >
+                      Confirm Cancel
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setConfirmCancel(false)}
+                    >
+                      Keep Slot
+                    </Button>
+                  </div>
                 </div>
-              ) : (
+              ) : showRelocateForm ? (
                 <form onSubmit={handleQueueRelocation} className="space-y-2 rounded-xl bg-amber-50 p-3">
                   <label className="block text-xs font-semibold text-amber-900">
                     Reason for moving to Relocation Queue
@@ -279,6 +303,25 @@ export function BookingSheet({
                     </Button>
                   </div>
                 </form>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={isBusy}
+                    onClick={() => setShowRelocateForm(true)}
+                  >
+                    Move to Queue
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={isBusy}
+                    onClick={() => setConfirmCancel(true)}
+                  >
+                    Cancel Slot
+                  </Button>
+                </div>
               )}
             </div>
           )}

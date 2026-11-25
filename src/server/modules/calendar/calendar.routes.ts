@@ -35,6 +35,12 @@ export const calendarRoutes = new Hono<AppEnv>()
     const data = await service.listMonth(resolvedMonth, c.get('user'));
     return c.json(data);
   })
+  .get('/slots/:id/history', requireRole('eb'), async (c) => {
+    const id = c.req.param('id');
+    const service = createCalendarService(c.env.DB);
+    const history = await service.listSlotHistory(id, c.get('user'));
+    return c.json({ history });
+  })
   .post('/slots', requireRole('eb'), zValidator('json', CreateSlotInputSchema), async (c) => {
     const input = c.req.valid('json');
     const service = createCalendarService(c.env.DB);

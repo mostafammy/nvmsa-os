@@ -40,6 +40,7 @@ export function useOptimisticBooking(month: string) {
           creatorId: user.id,
           notes: input.notes ?? null,
           relocationReason: null,
+          version: 1,
           createdAt: now,
           updatedAt: now,
         };

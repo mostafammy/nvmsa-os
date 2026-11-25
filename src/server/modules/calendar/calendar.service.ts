@@ -5,9 +5,10 @@ import type {
   PublicSlotView,
   RelocateSlotInput,
   SessionUser,
+  SlotAuditLogEntry,
   UpdateSlotInput,
 } from '@shared/types';
-import { getMonthDateBounds, isValidIsoDate } from '@shared/utils';
+import { getMonthDateBounds, getTodayCairoDate, isValidIsoDate } from '@shared/utils';
 import {
   ConflictError,
   ForbiddenError,
@@ -17,7 +18,7 @@ import {
 } from '../../core/errors/domain-errors';
 import { defaultCalendarPolicy, type CalendarPolicy } from './calendar.policy';
 import type { ISlotRepository } from './calendar.repository';
-import type { CalendarSlotRow } from './calendar.table';
+import type { CalendarSlotAuditRow, CalendarSlotRow } from './calendar.table';
 
 function toPublicSlotView(row: CalendarSlotRow): PublicSlotView {
   return {
@@ -37,8 +38,24 @@ function toManagedSlotView(row: CalendarSlotRow): ManagedSlotView {
     creatorId: row.creatorId,
     notes: row.notes,
     relocationReason: row.relocationReason,
+    version: row.version,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+  };
+}
+
+function toAuditLogEntry(row: CalendarSlotAuditRow): SlotAuditLogEntry {
+  return {
+    id: row.id,
+    slotId: row.slotId,
+    action: row.action,
+    actorId: row.actorId,
+    actorName: row.actorName,
+    actorRole: row.actorRole,
+    previousDate: row.previousDate,
+    nextDate: row.nextDate,
+    reason: row.reason,
+    createdAt: row.createdAt,
   };
 }
 
@@ -48,6 +65,15 @@ export class CalendarService {
     private readonly policy: CalendarPolicy = defaultCalendarPolicy,
     private readonly clock: () => Date = () => new Date(),
   ) {}
+
+  private assertNotPastDateForRole(postDate: string, actor: SessionUser): void {
+    const todayCairo = getTodayCairoDate(this.clock());
+    if (postDate < todayCairo && !this.policy.canOverrideSlot(actor)) {
+      throw new ValidationError(
+        `Cannot book or reschedule onto a past Cairo date (${postDate} < ${todayCairo})`,
+      );
+    }
+  }
 
   async listMonth(month: string, actor: SessionUser | null): Promise<CalendarMonthResponse> {
     const { start, end } = getMonthDateBounds(month);
@@ -69,6 +95,21 @@ export class CalendarService {
     };
   }
 
+  async listSlotHistory(id: string, actor: SessionUser | null): Promise<SlotAuditLogEntry[]> {
+    if (!actor) {
+      throw new UnauthorizedError('Sign in to view slot audit history');
+    }
+    if (!this.policy.canViewManagedFields(actor)) {
+      throw new ForbiddenError('Only EB members and admins can view slot audit history');
+    }
+    const existing = await this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundError('Content slot not found');
+    }
+    const logs = await this.repo.listAuditLogs(id);
+    return logs.map(toAuditLogEntry);
+  }
+
   async bookSlot(input: CreateSlotInput, actor: SessionUser | null): Promise<ManagedSlotView> {
     if (!actor) {
       throw new UnauthorizedError('Sign in to book a content slot');
@@ -79,6 +120,7 @@ export class CalendarService {
     if (!isValidIsoDate(input.postDate)) {
       throw new ValidationError(`Invalid calendar date: ${input.postDate}`);
     }
+    this.assertNotPastDateForRole(input.postDate, actor);
 
     const existing = await this.repo.findBookedByDate(input.postDate);
     if (existing) {
@@ -99,8 +141,22 @@ export class CalendarService {
       relocationReason: null,
       creatorId: actor.id,
       creatorName: actor.name,
+      version: 1,
       createdAt: now,
       updatedAt: now,
+    });
+
+    await this.repo.appendAuditLog({
+      id: crypto.randomUUID(),
+      slotId: created.id,
+      action: 'booked',
+      actorId: actor.id,
+      actorName: actor.name,
+      actorRole: actor.role,
+      previousDate: null,
+      nextDate: created.postDate,
+      reason: null,
+      createdAt: now,
     });
 
     return toManagedSlotView(created);
@@ -124,17 +180,35 @@ export class CalendarService {
       throw new ForbiddenError('Only the slot creator or an admin can edit this slot');
     }
 
-    const updated = await this.repo.update(id, {
-      ...(input.title !== undefined ? { title: input.title } : {}),
-      ...(input.entityCode !== undefined ? { entityCode: input.entityCode } : {}),
-      ...(input.format !== undefined ? { format: input.format } : {}),
-      ...(input.notes !== undefined ? { notes: input.notes } : {}),
-      updatedAt: this.clock().toISOString(),
-    });
+    const now = this.clock().toISOString();
+    const updated = await this.repo.update(
+      id,
+      {
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.entityCode !== undefined ? { entityCode: input.entityCode } : {}),
+        ...(input.format !== undefined ? { format: input.format } : {}),
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        updatedAt: now,
+      },
+      input.expectedVersion,
+    );
 
     if (!updated) {
       throw new NotFoundError('Content slot not found');
     }
+
+    await this.repo.appendAuditLog({
+      id: crypto.randomUUID(),
+      slotId: updated.id,
+      action: 'updated',
+      actorId: actor.id,
+      actorName: actor.name,
+      actorRole: actor.role,
+      previousDate: existing.postDate,
+      nextDate: updated.postDate,
+      reason: null,
+      createdAt: now,
+    });
 
     return toManagedSlotView(updated);
   }
@@ -161,14 +235,32 @@ export class CalendarService {
 
     // Case 1: Move to Relocation Queue (frees the original post_date)
     if (!input.targetDate) {
-      const queued = await this.repo.update(id, {
-        status: 'relocation_queue',
-        relocationReason: input.reason,
-        updatedAt: now,
-      });
+      const queued = await this.repo.update(
+        id,
+        {
+          status: 'relocation_queue',
+          relocationReason: input.reason,
+          updatedAt: now,
+        },
+        input.expectedVersion,
+      );
       if (!queued) {
         throw new NotFoundError('Content slot not found');
       }
+
+      await this.repo.appendAuditLog({
+        id: crypto.randomUUID(),
+        slotId: queued.id,
+        action: 'queued_for_relocation',
+        actorId: actor.id,
+        actorName: actor.name,
+        actorRole: actor.role,
+        previousDate: existing.postDate,
+        nextDate: null,
+        reason: input.reason,
+        createdAt: now,
+      });
+
       return toManagedSlotView(queued);
     }
 
@@ -176,6 +268,7 @@ export class CalendarService {
     if (!isValidIsoDate(input.targetDate)) {
       throw new ValidationError(`Invalid target date: ${input.targetDate}`);
     }
+    this.assertNotPastDateForRole(input.targetDate, actor);
 
     const occupying = await this.repo.findBookedByDate(input.targetDate);
     if (occupying && occupying.id !== existing.id) {
@@ -184,16 +277,33 @@ export class CalendarService {
       );
     }
 
-    const relocated = await this.repo.update(id, {
-      postDate: input.targetDate,
-      status: 'booked',
-      relocationReason: input.reason,
-      updatedAt: now,
-    });
+    const relocated = await this.repo.update(
+      id,
+      {
+        postDate: input.targetDate,
+        status: 'booked',
+        relocationReason: input.reason,
+        updatedAt: now,
+      },
+      input.expectedVersion,
+    );
 
     if (!relocated) {
       throw new NotFoundError('Content slot not found');
     }
+
+    await this.repo.appendAuditLog({
+      id: crypto.randomUUID(),
+      slotId: relocated.id,
+      action: 'relocated',
+      actorId: actor.id,
+      actorName: actor.name,
+      actorRole: actor.role,
+      previousDate: existing.postDate,
+      nextDate: relocated.postDate,
+      reason: input.reason,
+      createdAt: now,
+    });
 
     return toManagedSlotView(relocated);
   }
@@ -212,14 +322,28 @@ export class CalendarService {
       throw new ForbiddenError('Only the slot creator or an admin can cancel this slot');
     }
 
+    const now = this.clock().toISOString();
     const cancelled = await this.repo.update(id, {
       status: 'cancelled',
-      updatedAt: this.clock().toISOString(),
+      updatedAt: now,
     });
 
     if (!cancelled) {
       throw new NotFoundError('Content slot not found');
     }
+
+    await this.repo.appendAuditLog({
+      id: crypto.randomUUID(),
+      slotId: cancelled.id,
+      action: 'cancelled',
+      actorId: actor.id,
+      actorName: actor.name,
+      actorRole: actor.role,
+      previousDate: existing.postDate,
+      nextDate: null,
+      reason: null,
+      createdAt: now,
+    });
 
     return toManagedSlotView(cancelled);
   }

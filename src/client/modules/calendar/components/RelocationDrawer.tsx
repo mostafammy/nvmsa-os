@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { NVMSA_ENTITY_MAP } from '@shared/constants';
 import type { ManagedSlotView } from '@shared/types';
+import { getTodayCairoDate } from '@shared/utils';
+import { useSession } from '../../../core/auth/useSession';
 import { Badge } from '../../../ui/Badge';
 import { BottomSheet } from '../../../ui/BottomSheet';
 import { Button } from '../../../ui/Button';
@@ -8,19 +10,28 @@ import { Button } from '../../../ui/Button';
 interface RelocationDrawerProps {
   open: boolean;
   items: ManagedSlotView[];
+  bookedDates: Set<string>;
   isBusy: boolean;
   onClose: () => void;
-  onReschedule: (id: string, targetDate: string, reason: string) => Promise<void>;
+  onReschedule: (
+    id: string,
+    targetDate: string,
+    reason: string,
+    expectedVersion: number,
+  ) => Promise<void>;
 }
 
 export function RelocationDrawer({
   open,
   items,
+  bookedDates,
   isBusy,
   onClose,
   onReschedule,
 }: RelocationDrawerProps) {
+  const { user } = useSession();
   const [targetDates, setTargetDates] = useState<Record<string, string>>({});
+  const todayCairo = getTodayCairoDate();
 
   return (
     <BottomSheet
@@ -36,7 +47,11 @@ export function RelocationDrawer({
       ) : (
         <ul className="space-y-3">
           {items.map((item) => {
+            const canManage =
+              user !== null && (user.role === 'admin' || user.id === item.creatorId);
             const pickedDate = targetDates[item.id] ?? '';
+            const isDateOccupied = pickedDate !== '' && bookedDates.has(pickedDate);
+
             return (
               <li
                 key={item.id}
@@ -60,29 +75,44 @@ export function RelocationDrawer({
                   </p>
                 )}
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={pickedDate}
-                    onChange={(e) =>
-                      setTargetDates((prev) => ({ ...prev, [item.id]: e.target.value }))
-                    }
-                    className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
-                  />
-                  <Button
-                    size="sm"
-                    disabled={!pickedDate || isBusy}
-                    onClick={async () => {
-                      await onReschedule(
-                        item.id,
-                        pickedDate,
-                        item.relocationReason ?? 'Rescheduled from Relocation Queue',
-                      );
-                    }}
-                  >
-                    Assign Date
-                  </Button>
-                </div>
+                {canManage ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        min={user?.role === 'admin' ? undefined : todayCairo}
+                        value={pickedDate}
+                        onChange={(e) =>
+                          setTargetDates((prev) => ({ ...prev, [item.id]: e.target.value }))
+                        }
+                        className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900"
+                      />
+                      <Button
+                        size="sm"
+                        disabled={!pickedDate || isDateOccupied || isBusy}
+                        onClick={async () => {
+                          await onReschedule(
+                            item.id,
+                            pickedDate,
+                            item.relocationReason ?? 'Rescheduled from Relocation Queue',
+                            item.version,
+                          );
+                        }}
+                      >
+                        Assign Date
+                      </Button>
+                    </div>
+                    {isDateOccupied && (
+                      <p className="text-[11px] font-medium text-red-600">
+                        {pickedDate} is already booked. Pick an open date.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500">
+                    Only {item.creatorName} or an Admin can reassign this post.
+                  </p>
+                )}
               </li>
             );
           })}

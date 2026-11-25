@@ -1,3 +1,5 @@
 # Copy to .dev.vars for local Cloudflare Worker development (never commit .dev.vars)
-BETTER_AUTH_SECRET=replace-with-a-32-char-random-secret
+APP_ENV=development
+ALLOW_DEV_IMPERSONATION=true
+BETTER_AUTH_SECRET=local-dev-secret-replace-with-at-least-32-chars
 BETTER_AUTH_URL=http://localhost:5173

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { NVMSA_ENTITY_CODES } from '../constants';
+import { NVMSA_ENTITY_CODES, USER_ROLES } from '../constants';
 
 export const IsoDateSchema = z
   .string()
@@ -21,6 +21,14 @@ export const PostFormatSchema = z.enum([
 
 export const NvmsaEntityCodeSchema = z.enum(NVMSA_ENTITY_CODES);
 
+export const SlotAuditActionSchema = z.enum([
+  'booked',
+  'updated',
+  'queued_for_relocation',
+  'relocated',
+  'cancelled',
+]);
+
 /**
  * ISP Read DTO for Officers (public read-only calendar view).
  */
@@ -41,8 +49,22 @@ export const ManagedSlotViewSchema = PublicSlotViewSchema.extend({
   creatorId: z.string(),
   notes: z.string().nullable(),
   relocationReason: z.string().nullable(),
+  version: z.number().int().positive(),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+export const SlotAuditLogEntrySchema = z.object({
+  id: z.string(),
+  slotId: z.string(),
+  action: SlotAuditActionSchema,
+  actorId: z.string(),
+  actorName: z.string(),
+  actorRole: z.enum(USER_ROLES),
+  previousDate: IsoDateSchema.nullable(),
+  nextDate: IsoDateSchema.nullable(),
+  reason: z.string().nullable(),
+  createdAt: z.string(),
 });
 
 /**
@@ -57,7 +79,7 @@ export const CreateSlotInputSchema = z.object({
 });
 
 /**
- * Write command: Edit an existing slot (creator-only or admin).
+ * Write command: Edit an existing slot (creator-only or admin) with optional optimistic locking.
  */
 export const UpdateSlotInputSchema = z
   .object({
@@ -65,10 +87,18 @@ export const UpdateSlotInputSchema = z
     entityCode: NvmsaEntityCodeSchema.optional(),
     format: PostFormatSchema.optional(),
     notes: z.string().trim().max(500).nullable().optional(),
+    expectedVersion: z.number().int().positive().optional(),
   })
-  .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field must be provided to update',
-  });
+  .refine(
+    (data) =>
+      data.title !== undefined ||
+      data.entityCode !== undefined ||
+      data.format !== undefined ||
+      data.notes !== undefined,
+    {
+      message: 'At least one field must be provided to update',
+    },
+  );
 
 /**
  * Write command: Queue a slot for relocation or reschedule it onto an open date.
@@ -76,6 +106,7 @@ export const UpdateSlotInputSchema = z
 export const RelocateSlotInputSchema = z.object({
   targetDate: IsoDateSchema.nullable().optional(),
   reason: z.string().trim().min(3, 'Please provide a short relocation reason').max(280),
+  expectedVersion: z.number().int().positive().optional(),
 });
 
 export const CalendarMonthResponseSchema = z.object({

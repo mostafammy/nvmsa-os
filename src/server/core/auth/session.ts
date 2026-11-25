@@ -19,8 +19,8 @@ function parseEntityCode(value: unknown): NvmsaEntityCode | null {
 }
 
 export const sessionMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
-  // Development persona switcher header (disabled outside development)
-  if (c.env.APP_ENV === 'development') {
+  // Strictly gated: requires BOTH local APP_ENV=development AND explicit ALLOW_DEV_IMPERSONATION=true
+  if (c.env.APP_ENV === 'development' && c.env.ALLOW_DEV_IMPERSONATION === 'true') {
     const devRole = c.req.header('x-dev-role');
     if (devRole) {
       const role = parseRole(devRole);

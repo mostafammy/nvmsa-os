@@ -1,7 +1,14 @@
-import { and, asc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { AppDatabase } from '../../core/db/client';
 import { ConflictError } from '../../core/errors/domain-errors';
-import { calendarSlots, type CalendarSlotRow, type NewCalendarSlotRow } from './calendar.table';
+import {
+  calendarSlotAuditLogs,
+  calendarSlots,
+  type CalendarSlotAuditRow,
+  type CalendarSlotRow,
+  type NewCalendarSlotAuditRow,
+  type NewCalendarSlotRow,
+} from './calendar.table';
 
 export type SlotUpdatePatch = Partial<
   Pick<
@@ -16,7 +23,9 @@ export interface ISlotRepository {
   listBookedInRange(startDate: string, endDate: string): Promise<CalendarSlotRow[]>;
   listRelocationQueue(): Promise<CalendarSlotRow[]>;
   insert(slot: NewCalendarSlotRow): Promise<CalendarSlotRow>;
-  update(id: string, patch: SlotUpdatePatch): Promise<CalendarSlotRow | null>;
+  update(id: string, patch: SlotUpdatePatch, expectedVersion?: number): Promise<CalendarSlotRow | null>;
+  appendAuditLog(entry: NewCalendarSlotAuditRow): Promise<CalendarSlotAuditRow>;
+  listAuditLogs(slotId: string): Promise<CalendarSlotAuditRow[]>;
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -87,29 +96,69 @@ export class D1SlotRepository implements ISlotRepository {
     }
   }
 
-  async update(id: string, patch: SlotUpdatePatch): Promise<CalendarSlotRow | null> {
+  async update(
+    id: string,
+    patch: SlotUpdatePatch,
+    expectedVersion?: number,
+  ): Promise<CalendarSlotRow | null> {
     try {
+      const whereClause =
+        expectedVersion !== undefined
+          ? and(eq(calendarSlots.id, id), eq(calendarSlots.version, expectedVersion))
+          : eq(calendarSlots.id, id);
+
       const [updated] = await this.db
         .update(calendarSlots)
-        .set(patch)
-        .where(eq(calendarSlots.id, id))
+        .set({
+          ...patch,
+          version: sql`${calendarSlots.version} + 1`,
+        })
+        .where(whereClause)
         .returning();
+
+      if (!updated && expectedVersion !== undefined) {
+        const current = await this.findById(id);
+        if (current) {
+          throw new ConflictError(
+            'This slot was modified by someone else. Refresh and try again.',
+          );
+        }
+      }
+
       return updated ?? null;
     } catch (error) {
+      if (error instanceof ConflictError) throw error;
       if (isUniqueConstraintError(error)) {
         throw new ConflictError(`Target date ${patch.postDate ?? ''} is already booked`);
       }
       throw error;
     }
   }
+
+  async appendAuditLog(entry: NewCalendarSlotAuditRow): Promise<CalendarSlotAuditRow> {
+    const [inserted] = await this.db.insert(calendarSlotAuditLogs).values(entry).returning();
+    if (!inserted) {
+      throw new Error('Failed to append calendar audit log');
+    }
+    return inserted;
+  }
+
+  async listAuditLogs(slotId: string): Promise<CalendarSlotAuditRow[]> {
+    return this.db
+      .select()
+      .from(calendarSlotAuditLogs)
+      .where(eq(calendarSlotAuditLogs.slotId, slotId))
+      .orderBy(desc(calendarSlotAuditLogs.createdAt));
+  }
 }
 
 /**
- * In-memory ISlotRepository enforcing the exact same partial unique index
- * (`post_date` unique while `status === 'booked'`) for fast Vitest unit tests.
+ * In-memory ISlotRepository enforcing the partial unique index,
+ * optimistic locking (`version`), and append-only audit logs for fast unit tests.
  */
 export class InMemorySlotRepository implements ISlotRepository {
   private readonly rows = new Map<string, CalendarSlotRow>();
+  private readonly logs: CalendarSlotAuditRow[] = [];
 
   constructor(seed: CalendarSlotRow[] = []) {
     for (const row of seed) {
@@ -157,6 +206,7 @@ export class InMemorySlotRepository implements ISlotRepository {
       relocationReason: slot.relocationReason ?? null,
       creatorId: slot.creatorId,
       creatorName: slot.creatorName,
+      version: slot.version ?? 1,
       createdAt: slot.createdAt,
       updatedAt: slot.updatedAt,
     };
@@ -172,13 +222,22 @@ export class InMemorySlotRepository implements ISlotRepository {
     return { ...record };
   }
 
-  async update(id: string, patch: SlotUpdatePatch): Promise<CalendarSlotRow | null> {
+  async update(
+    id: string,
+    patch: SlotUpdatePatch,
+    expectedVersion?: number,
+  ): Promise<CalendarSlotRow | null> {
     const current = this.rows.get(id);
     if (!current) return null;
+
+    if (expectedVersion !== undefined && current.version !== expectedVersion) {
+      throw new ConflictError('This slot was modified by someone else. Refresh and try again.');
+    }
 
     const next: CalendarSlotRow = {
       ...current,
       ...patch,
+      version: current.version + 1,
     };
 
     if (next.status === 'booked') {
@@ -191,5 +250,29 @@ export class InMemorySlotRepository implements ISlotRepository {
 
     this.rows.set(id, next);
     return { ...next };
+  }
+
+  async appendAuditLog(entry: NewCalendarSlotAuditRow): Promise<CalendarSlotAuditRow> {
+    const record: CalendarSlotAuditRow = {
+      id: entry.id,
+      slotId: entry.slotId,
+      action: entry.action,
+      actorId: entry.actorId,
+      actorName: entry.actorName,
+      actorRole: entry.actorRole,
+      previousDate: entry.previousDate ?? null,
+      nextDate: entry.nextDate ?? null,
+      reason: entry.reason ?? null,
+      createdAt: entry.createdAt,
+    };
+    this.logs.push(record);
+    return { ...record };
+  }
+
+  async listAuditLogs(slotId: string): Promise<CalendarSlotAuditRow[]> {
+    return this.logs
+      .filter((log) => log.slotId === slotId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((log) => ({ ...log }));
   }
 }

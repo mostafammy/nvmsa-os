@@ -52,4 +52,4 @@ export const verifications = sqliteTable('verification', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }),
 });
 
-export { calendarSlots } from '../../modules/calendar/calendar.table';
+export { calendarSlotAuditLogs, calendarSlots } from '../../modules/calendar/calendar.table';

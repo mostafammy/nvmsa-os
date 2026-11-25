@@ -6,6 +6,7 @@ export interface Env {
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
   APP_ENV?: 'development' | 'staging' | 'production';
+  ALLOW_DEV_IMPERSONATION?: string;
   APP_TIMEZONE?: string;
 }
 

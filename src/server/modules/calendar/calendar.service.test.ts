@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionUser } from '@shared/types';
-import { ConflictError, ForbiddenError } from '../../core/errors/domain-errors';
+import { ConflictError, ForbiddenError, ValidationError } from '../../core/errors/domain-errors';
 import { defaultCalendarPolicy } from './calendar.policy';
 import { InMemorySlotRepository } from './calendar.repository';
 import { CalendarService } from './calendar.service';
@@ -64,6 +64,7 @@ describe('CalendarService', () => {
 
     expect(first.status).toBe('booked');
     expect(first.postDate).toBe('2026-12-01');
+    expect(first.version).toBe(1);
 
     await expect(
       service.bookSlot(
@@ -134,20 +135,69 @@ describe('CalendarService', () => {
 
     const selfUpdated = await service.updateSlot(
       slot.id,
-      { title: 'Updated by Creator' },
+      { title: 'Updated by Creator', expectedVersion: 1 },
       ebAlice,
     );
     expect(selfUpdated.title).toBe('Updated by Creator');
+    expect(selfUpdated.version).toBe(2);
 
     const adminOverride = await service.updateSlot(
       slot.id,
-      { title: 'Approved by Admin' },
+      { title: 'Approved by Admin', expectedVersion: 2 },
       adminUser,
     );
     expect(adminOverride.title).toBe('Approved by Admin');
+    expect(adminOverride.version).toBe(3);
   });
 
-  it('frees the original date when moved to Relocation Queue and allows rescheduling onto an open date', async () => {
+  it('rejects stale concurrent edits via optimistic locking (expectedVersion)', async () => {
+    const { service } = createTestService();
+
+    const slot = await service.bookSlot(
+      {
+        postDate: '2026-12-08',
+        title: 'Original Post',
+        entityCode: 'SCOPH',
+        format: 'poster',
+      },
+      ebAlice,
+    );
+
+    await service.updateSlot(slot.id, { title: 'Admin Edit', expectedVersion: 1 }, adminUser);
+
+    await expect(
+      service.updateSlot(slot.id, { title: 'Stale EB Edit', expectedVersion: 1 }, ebAlice),
+    ).rejects.toThrow(ConflictError);
+  });
+
+  it('blocks EB members from booking past Cairo dates while allowing Admin backfills', async () => {
+    const { service } = createTestService();
+
+    await expect(
+      service.bookSlot(
+        {
+          postDate: '2026-11-20',
+          title: 'Backdated EB Post',
+          entityCode: 'SCOPH',
+          format: 'poster',
+        },
+        ebAlice,
+      ),
+    ).rejects.toThrow(ValidationError);
+
+    const backfilled = await service.bookSlot(
+      {
+        postDate: '2026-11-20',
+        title: 'Admin Historical Record',
+        entityCode: 'PNSDD',
+        format: 'announcement',
+      },
+      adminUser,
+    );
+    expect(backfilled.postDate).toBe('2026-11-20');
+  });
+
+  it('frees the original date when moved to Relocation Queue and records append-only audit logs', async () => {
     const { service } = createTestService();
 
     const original = await service.bookSlot(
@@ -163,7 +213,7 @@ describe('CalendarService', () => {
     // Move to Relocation Queue
     const queued = await service.relocateSlot(
       original.id,
-      { reason: 'Waiting for final designer exports' },
+      { reason: 'Waiting for final designer exports', expectedVersion: 1 },
       ebAlice,
     );
     expect(queued.status).toBe('relocation_queue');
@@ -192,11 +242,18 @@ describe('CalendarService', () => {
     // Rescheduling onto an open date succeeds
     const rescheduled = await service.relocateSlot(
       original.id,
-      { targetDate: '2026-12-12', reason: 'Assets ready for Dec 12' },
+      { targetDate: '2026-12-12', reason: 'Assets ready for Dec 12', expectedVersion: 2 },
       ebAlice,
     );
     expect(rescheduled.status).toBe('booked');
     expect(rescheduled.postDate).toBe('2026-12-12');
+
+    const history = await service.listSlotHistory(original.id, adminUser);
+    expect(history.map((entry) => entry.action).sort()).toEqual([
+      'booked',
+      'queued_for_relocation',
+      'relocated',
+    ]);
   });
 
   it('frees a date after cancellation', async () => {

@@ -16,7 +16,8 @@
     }
   ],
   "vars": {
-    "APP_ENV": "development",
+    "APP_ENV": "production",
+    "ALLOW_DEV_IMPERSONATION": "false",
     "APP_TIMEZONE": "Africa/Cairo"
   }
 }
