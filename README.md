@@ -79,3 +79,7 @@ pnpm deploy     # Build SPA + Worker bundle and deploy to Cloudflare
 
 - **Branches**: `main` (auto-deploys to production), `feat/<module>-<short-desc>`, `fix/<module>-<short-desc>`.
 - **Conventional Commits** scoped by module: `feat(calendar): enforce creator-only edit policy`, `feat(shell): add bottom navigation module registry`, `chore(db): add partial unique index on booked post_date`.
+
+## Architecture & Engineering Specifications
+
+- **[NVMSA OS v2.0 Master Specification (`NVMSA-RFC-2026-001`)](./docs/specs/NVMSA_OS_MASTER_SPEC.md)** — Authoritative Principal Engineering RFC covering the v1.0 defect & security audit, system architecture, D1 batch atomicity & Cairo timezone invariants, 16-item 60/120Hz fluid motion choreography catalog, 25-scenario adversarial QA edge-case matrix, and Cloudflare Workers ephemeral PR branch preview & canary rollout pipelines.
