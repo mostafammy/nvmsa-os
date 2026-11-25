@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <rect width="180" height="180" fill="#0f766e" />
+  <text x="90" y="98" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="800" fill="#ffffff" letter-spacing="2">NVMSA</text>
+  <text x="90" y="130" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="600" fill="#99f6e4" letter-spacing="5">OS</text>
+</svg>

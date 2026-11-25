@@ -1,0 +1,50 @@
+{
+  "name": "nvmsa-os",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Modular, mobile-first operating system for NVMSA — starting with a 1-post-per-day content calendar PWA.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply nvmsa-os-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply nvmsa-os-db --remote",
+    "deploy": "vite build && wrangler deploy"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.4.3",
+    "@tanstack/react-query": "^5.66.0",
+    "better-auth": "^1.2.4",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.7.2",
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.2.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.70.0",
+    "@cloudflare/workers-types": "^4.20250214.0",
+    "@eslint/js": "^9.20.0",
+    "@tailwindcss/vite": "^4.0.6",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "drizzle-kit": "^0.31.4",
+    "eslint": "^9.20.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "tailwindcss": "^4.0.6",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0",
+    "vite": "^6.1.1",
+    "vitest": "^3.0.6",
+    "wrangler": "^4.168.0"
+  }
+}

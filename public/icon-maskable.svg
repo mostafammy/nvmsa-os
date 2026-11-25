@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0f766e" />
+  <text x="256" y="276" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="800" fill="#ffffff" letter-spacing="4">NVMSA</text>
+  <text x="256" y="346" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="44" font-weight="600" fill="#99f6e4" letter-spacing="12">OS</text>
+</svg>
