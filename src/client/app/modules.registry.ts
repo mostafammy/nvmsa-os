@@ -32,7 +32,7 @@ export const OS_MODULES: readonly OsModuleDefinition[] = [
     shortLabel: 'Calendar',
     route: '/calendar',
     icon: CalendarDays,
-    description: '1-post-per-Cairo-day ledger, seat-locked editing, and relocation queue.',
+    description: 'One post a day · Cairo time',
     component: LazyCalendarPage,
   },
   {
@@ -41,7 +41,7 @@ export const OS_MODULES: readonly OsModuleDefinition[] = [
     shortLabel: 'Admin',
     route: '/admin',
     icon: ShieldCheck,
-    description: 'Manage the 13 official NVMSA leadership seats and organization units.',
+    description: 'Assign the 13 official seats and manage committees.',
     requiredCapability: 'canManageSeats',
     component: LazyAdminPage,
   },

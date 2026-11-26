@@ -9,12 +9,12 @@ export function MobileShell() {
     OS_MODULES.find((mod) => pathname.startsWith(mod.route)) ?? OS_MODULES[0];
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-50">
+    <div className="flex min-h-dvh flex-col bg-paper">
       <SafeAreaHeader
         title={activeModule?.name ?? 'NVMSA OS'}
         subtitle={activeModule?.description}
       />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-3 pb-24 pt-4 sm:px-4">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-5 sm:px-6 sm:pt-8">
         <Outlet />
       </main>
       <BottomNav />

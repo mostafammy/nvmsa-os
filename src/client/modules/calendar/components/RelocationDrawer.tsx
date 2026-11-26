@@ -1,4 +1,4 @@
-import { CalendarPlus, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, CalendarPlus, Trash2 } from 'lucide-react';
 import { resolveAccentPalette } from '@shared/constants';
 import type { ManagedSlotView, OrgUnit } from '@shared/types';
 import { createIdempotencyKey } from '../../../core/api/client';
@@ -40,9 +40,15 @@ export function RelocationDrawer({
       onClose={onClose}
     >
       {items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-slate-600">
-          No posts are waiting in the Relocation Queue.
-        </p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong bg-paper/60 px-6 py-10 text-center">
+          <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sunken text-ink-soft">
+            <ArrowLeftRight className="h-5 w-5" />
+          </div>
+          <p className="text-[15px] font-medium text-ink">Queue is empty</p>
+          <p className="mt-1 text-[14px] text-muted">
+            No posts are waiting to be placed on a new Cairo day.
+          </p>
+        </div>
       ) : (
         <ul className="space-y-3">
           {items.map((item) => {
@@ -54,14 +60,18 @@ export function RelocationDrawer({
             return (
               <li
                 key={item.id}
-                className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5"
+                className="relative space-y-3 overflow-hidden rounded-2xl border border-line bg-paper p-4"
               >
-                <div className="flex items-start justify-between gap-2">
+                <span
+                  aria-hidden="true"
+                  className={`absolute inset-y-0 start-0 w-1 ${palette.dotClass}`}
+                />
+                <div className="flex items-start justify-between gap-2 ps-1">
                   <div className="min-w-0">
-                    <p dir="auto" className="truncate text-sm font-bold text-slate-900">
+                    <p dir="auto" className="truncate text-[15px] font-medium text-ink">
                       {item.title}
                     </p>
-                    <p className="text-xs text-slate-600">
+                    <p className="mt-0.5 text-[13px] text-muted">
                       {item.previousDate ? `Originally ${item.previousDate} · ` : ''}
                       {item.ownerSeatCode} ({item.creatorName})
                     </p>
@@ -70,36 +80,40 @@ export function RelocationDrawer({
                 </div>
 
                 {item.relocationReason && (
-                  <p dir="auto" className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-950">
+                  <p
+                    dir="auto"
+                    className="ms-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950"
+                  >
                     Reason: {item.relocationReason}
                   </p>
                 )}
 
                 {canManage ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ps-1">
                     <Button
                       size="sm"
                       className="flex-1"
                       disabled={isBusy}
                       onClick={() => onStartPlacement(item)}
                     >
-                      <CalendarPlus className="h-3.5 w-3.5" />
+                      <CalendarPlus className="h-4 w-4" />
                       Assign New Day
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="w-11 !px-0 text-red-700 hover:bg-red-50 hover:text-red-800"
                       aria-label={`Cancel ${item.title}`}
                       disabled={isBusy}
                       onClick={() =>
                         void onCancelSlot(item.id, item.version, createIdempotencyKey())
                       }
                     >
-                      <Trash2 className="h-4 w-4 text-red-600" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-slate-600">
+                  <p className="ps-1 text-[13px] text-muted">
                     Only {item.ownerSeatCode} or an authorized lead can reassign this post.
                   </p>
                 )}

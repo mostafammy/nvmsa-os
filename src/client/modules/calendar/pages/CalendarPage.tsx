@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, CalendarCheck2, CalendarDays, List, X } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeftRight,
+  CalendarDays,
+  ChevronRight,
+  List,
+  X,
+} from 'lucide-react';
 import { resolveAccentPalette } from '@shared/constants';
 import type { ManagedSlotView } from '@shared/types';
-import { formatShortDayLabel } from '@shared/utils';
+import { formatShortDayLabel, getMonthDateBounds } from '@shared/utils';
 import { ApiRequestError, createIdempotencyKey } from '../../../core/api/client';
 import { RoleGate } from '../../../core/auth/RoleGate';
 import { useSession } from '../../../core/auth/useSession';
@@ -79,6 +86,13 @@ export function CalendarPage() {
     return items.sort((a, b) => (a.postDate ?? '').localeCompare(b.postDate ?? ''));
   }, [month, slotsByDate, unitFilter]);
 
+  const daysInMonth = useMemo(() => {
+    const { end } = getMonthDateBounds(month);
+    return Number(end.slice(8, 10)) || 30;
+  }, [month]);
+
+  const fillPercent = Math.min(100, Math.round((monthScopedSlots.length / daysInMonth) * 100));
+
   const selectedDate = uiState.kind === 'inspectingOrBooking' ? uiState.date : null;
   const selectedSlot = selectedDate ? slotsByDate.get(selectedDate) : undefined;
 
@@ -121,48 +135,82 @@ export function CalendarPage() {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="animate-enter space-y-4 sm:space-y-5">
       {uiState.kind === 'placingRelocation' && (
-        <div className="sticky top-[62px] z-20 flex items-center justify-between gap-3 rounded-2xl border border-teal-700 bg-teal-900 px-4 py-3 text-xs text-white shadow-md">
-          <div className="min-w-0">
-            <p className="font-bold">Placement Mode</p>
-            <p dir="auto" className="truncate text-teal-100">
-              Tap any open day for: {uiState.slot.title}
-            </p>
+        <div
+          role="status"
+          className="sticky top-[72px] z-20 flex items-center justify-between gap-3 rounded-2xl border border-brand bg-ink px-4 py-3 text-paper shadow-[0_14px_32px_-12px_rgb(20_32_30/0.45)]"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-2.5 shrink-0 animate-[var(--animate-pulse-dot)] rounded-full bg-emerald-400"
+            />
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-paper">Placement mode active</p>
+              <p dir="auto" className="truncate text-[13px] text-paper/80">
+                Tap any open day for: {uiState.slot.title}
+              </p>
+            </div>
           </div>
           <Button
             size="sm"
             variant="secondary"
             onClick={() => setUiState({ kind: 'idle' })}
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
             Cancel
           </Button>
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-2xs">
-        <div className="flex items-center gap-2 text-xs text-slate-600">
-          <CalendarCheck2 className="h-4 w-4 text-teal-700" />
-          <span>
-            <strong className="text-slate-900">{monthScopedSlots.length}</strong>{' '}
-            {unitFilter === 'ALL' ? 'booked this month' : `${unitFilter} posts`}
-          </span>
+      {/* Command strip: live month occupancy + fluid segmented view switch + queue/mode */}
+      <div className="panel flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-[22px] font-medium leading-none tracking-[-0.02em] text-ink tabular-nums">
+              {monthScopedSlots.length}
+            </span>
+            <span className="truncate text-[14px] text-muted">
+              {unitFilter === 'ALL'
+                ? `of ${daysInMonth} days booked`
+                : `${unitFilter} posts in ${monthHeading}`}
+            </span>
+          </div>
+          <div
+            aria-hidden="true"
+            className="h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-sunken"
+          >
+            <div
+              className="h-full rounded-full bg-brand transition-[width] duration-300 ease-[var(--ease-enter)]"
+              style={{ width: `${fillPercent}%` }}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
+          <div
+            role="group"
+            aria-label="Calendar layout"
+            className="relative inline-grid grid-cols-2 rounded-full border border-line bg-sunken p-1"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-1 start-1 w-[calc(50%-0.25rem)] rounded-full bg-surface shadow-[0_1px_3px_rgb(20_32_30/0.12)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
+              style={{
+                transform: effectiveViewMode === 'agenda' ? 'translateX(100%)' : 'translateX(0%)',
+              }}
+            />
             <button
               type="button"
               onClick={() => setViewMode('grid')}
               aria-label="Month grid view"
-              className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${
-                effectiveViewMode === 'grid'
-                  ? 'bg-white text-teal-700 shadow-2xs'
-                  : 'text-slate-600'
+              aria-pressed={effectiveViewMode === 'grid'}
+              className={`relative z-10 inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors duration-150 ${
+                effectiveViewMode === 'grid' ? 'text-ink' : 'text-muted hover:text-ink'
               }`}
             >
-              <CalendarDays className="h-3.5 w-3.5" />
+              <CalendarDays className="h-4 w-4" />
               <span className="hidden sm:inline">Grid</span>
             </button>
             <button
@@ -170,20 +218,22 @@ export function CalendarPage() {
               disabled={isPlacementMode}
               onClick={() => setViewMode('agenda')}
               aria-label="Agenda list view"
-              className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold disabled:opacity-40 ${
-                effectiveViewMode === 'agenda'
-                  ? 'bg-white text-teal-700 shadow-2xs'
-                  : 'text-slate-600'
+              aria-pressed={effectiveViewMode === 'agenda'}
+              className={`relative z-10 inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${
+                effectiveViewMode === 'agenda' ? 'text-ink' : 'text-muted hover:text-ink'
               }`}
             >
-              <List className="h-3.5 w-3.5" />
+              <List className="h-4 w-4" />
               <span className="hidden sm:inline">Agenda</span>
             </button>
           </div>
 
           <RoleGate
             fallback={
-              <Badge className="border-slate-200 bg-slate-100 text-slate-700">Read-Only</Badge>
+              <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-sunken/80 px-3.5 text-[13px] font-medium text-ink-soft">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-brand" />
+                Read-Only
+              </span>
             }
           >
             <Button
@@ -191,44 +241,66 @@ export function CalendarPage() {
               size="sm"
               onClick={() => setUiState({ kind: 'relocationQueueOpen' })}
             >
-              <ArrowLeftRight className="h-3.5 w-3.5" />
-              Queue ({relocationQueue.length})
+              <ArrowLeftRight className="h-4 w-4" />
+              <span>Queue</span>
+              <span className="font-mono text-[12px] text-muted">({relocationQueue.length})</span>
             </Button>
           </RoleGate>
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+      {/* Committee / division filter chips — every target >= 44x44px */}
+      <div
+        role="group"
+        aria-label="Filter by committee or division"
+        className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 py-0.5 sm:mx-0 sm:px-0"
+      >
         <button
           type="button"
+          data-unit-filter="ALL"
+          aria-pressed={unitFilter === 'ALL'}
           onClick={() => setUnitFilter('ALL')}
-          className={`shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+          className={`press inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border px-4 text-[13px] font-medium transition-[background-color,border-color,color,transform] duration-150 ${
             unitFilter === 'ALL'
-              ? 'border-teal-700 bg-teal-700 text-white'
-              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              ? 'border-ink bg-ink text-paper'
+              : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
           }`}
         >
           All
         </button>
-        {orgUnits.map((unit) => (
-          <button
-            key={unit.id}
-            type="button"
-            onClick={() => setUnitFilter(unit.id)}
-            className={`shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-              unitFilter === unit.id
-                ? 'border-teal-700 bg-teal-700 text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {unit.code}
-          </button>
-        ))}
+        {orgUnits.map((unit) => {
+          const active = unitFilter === unit.id;
+          const palette = resolveAccentPalette(unit.accentToken);
+          return (
+            <button
+              key={unit.id}
+              type="button"
+              data-unit-filter={unit.id}
+              aria-pressed={active}
+              onClick={() => setUnitFilter(unit.id)}
+              className={`press inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border px-3.5 text-[13px] font-medium transition-[background-color,border-color,color,transform] duration-150 ${
+                active
+                  ? 'border-ink bg-ink text-paper'
+                  : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
+              }`}
+            >
+              <span
+                aria-hidden="true"
+                className={`h-2 w-2 rounded-full ${active ? 'bg-paper' : palette.dotClass}`}
+              />
+              <span>{unit.code}</span>
+            </button>
+          );
+        })}
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
-          {error instanceof Error ? error.message : 'Unable to reach calendar API'}
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-[14px] text-red-900"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-700" />
+          <p>{error instanceof Error ? error.message : 'Unable to reach calendar API'}</p>
         </div>
       )}
 
@@ -249,23 +321,56 @@ export function CalendarPage() {
           onSelectDate={(isoDate) => void handleSelectDate(isoDate)}
         />
       ) : (
-        <section className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-900">{monthHeading} — Agenda</h2>
+        <section className="panel p-4 sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2
+                data-month-heading
+                className="font-display text-[24px] font-normal leading-tight tracking-[-0.03em] text-ink sm:text-[28px]"
+              >
+                {monthHeading} — Agenda
+              </h2>
+              <p className="mt-1 text-[13px] text-muted">
+                Scheduled posts in Cairo date order
+              </p>
+            </div>
             <Button variant="ghost" size="sm" onClick={goToToday}>
               Today
             </Button>
           </div>
+
           {monthScopedSlots.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-600">
-              No booked posts match this filter in {monthHeading}.
-            </p>
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong bg-paper/60 px-6 py-12 text-center">
+              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sunken text-ink-soft">
+                <CalendarDays className="h-6 w-6" />
+              </div>
+              <p className="text-[16px] font-medium text-ink">
+                No booked posts in {monthHeading}
+              </p>
+              <p className="mt-1 max-w-sm text-[14px] text-muted">
+                {unitFilter === 'ALL'
+                  ? 'Every Cairo day in this month is currently open. Switch to Grid to inspect or book a date.'
+                  : `No posts are booked for ${unitFilter} in ${monthHeading}.`}
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {unitFilter !== 'ALL' && (
+                  <Button variant="secondary" size="sm" onClick={() => setUnitFilter('ALL')}>
+                    Show All Units
+                  </Button>
+                )}
+                <Button variant="primary" size="sm" onClick={() => setViewMode('grid')}>
+                  Open Month Grid
+                </Button>
+              </div>
+            </div>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="space-y-2.5">
               {monthScopedSlots.map((slot) => {
                 const palette = resolveAccentPalette(
                   orgUnitsById.get(slot.orgUnitId)?.accentToken,
                 );
+                const dayNumber = slot.postDate ? slot.postDate.slice(8, 10) : '--';
+                const dayLabel = slot.postDate ? formatShortDayLabel(slot.postDate) : 'Pending';
                 return (
                   <li key={slot.id}>
                     <button
@@ -274,20 +379,32 @@ export function CalendarPage() {
                         slot.postDate &&
                         setUiState({ kind: 'inspectingOrBooking', date: slot.postDate })
                       }
-                      className="-mx-2 flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-3 text-start hover:bg-slate-50"
+                      className="lift press group relative flex min-h-16 w-full cursor-pointer items-center justify-between gap-3 overflow-hidden rounded-2xl border border-line bg-surface px-4 py-3 text-start hover:border-line-strong"
                     >
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-teal-700">
-                          {slot.postDate ? formatShortDayLabel(slot.postDate) : 'Pending'}
-                        </p>
-                        <p dir="auto" className="truncate text-sm font-bold text-slate-900">
-                          {slot.title}
-                        </p>
-                        <p className="text-xs text-slate-600">
-                          {slot.contentType} · {slot.creatorName}
-                        </p>
+                      <span
+                        aria-hidden="true"
+                        className={`absolute inset-y-0 start-0 w-1 ${palette.dotClass}`}
+                      />
+                      <div className="flex min-w-0 items-center gap-3.5 ps-1">
+                        <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-sunken font-mono">
+                          <span className="text-[15px] font-medium leading-none text-ink tabular-nums">
+                            {dayNumber}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-mono text-[12px] text-brand-strong">{dayLabel}</p>
+                          <p dir="auto" className="truncate text-[15px] font-medium text-ink">
+                            {slot.title}
+                          </p>
+                          <p className="text-[13px] text-muted">
+                            {slot.contentType.replace('_', ' ')} · {slot.creatorName}
+                          </p>
+                        </div>
                       </div>
-                      <Badge className={palette.badgeClass}>{slot.orgUnitId}</Badge>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Badge className={palette.badgeClass}>{slot.orgUnitId}</Badge>
+                        <ChevronRight className="h-4 w-4 text-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-ink" />
+                      </div>
                     </button>
                   </li>
                 );

@@ -1,11 +1,32 @@
 import { Component, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useSession } from '../core/auth/useSession';
+import { Button } from '../ui/Button';
 import { MobileShell } from './layout/MobileShell';
 import { OS_MODULES } from './modules.registry';
 
 interface ModuleErrorBoundaryState {
   error: Error | null;
+}
+
+function ModuleSkeleton({ label }: { label: string }) {
+  return (
+    <div className="panel space-y-4 p-5" aria-busy="true" aria-label={label}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="skeleton h-8 w-44" />
+        <div className="flex gap-2">
+          <div className="skeleton h-11 w-11 rounded-full" />
+          <div className="skeleton h-11 w-11 rounded-full" />
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-2">
+        {Array.from({ length: 14 }).map((_, i) => (
+          <div key={i} className="skeleton h-20" />
+        ))}
+      </div>
+      <p className="sr-only">{label}</p>
+    </div>
+  );
 }
 
 class ModuleErrorBoundary extends Component<
@@ -21,18 +42,18 @@ class ModuleErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <section className="rounded-2xl border border-red-200 bg-white p-6 text-center shadow-xs">
-          <h2 className="text-base font-bold text-slate-900">
+        <section className="panel border-red-200 p-6 text-center">
+          <h2 className="font-display text-[20px] font-medium text-ink">
             {this.props.moduleName} failed to render
           </h2>
-          <p className="mt-1 text-xs text-slate-600">{this.state.error.message}</p>
-          <button
-            type="button"
+          <p className="mt-1.5 text-[14px] text-muted">{this.state.error.message}</p>
+          <Button
+            size="sm"
             onClick={() => this.setState({ error: null })}
-            className="mt-4 cursor-pointer rounded-xl bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
+            className="mt-5"
           >
             Retry Module
-          </button>
+          </Button>
         </section>
       );
     }
@@ -53,11 +74,7 @@ function ModuleGuard({
     return <>{children}</>;
   }
   if (isLoading) {
-    return (
-      <div className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
-        Verifying seat authorization...
-      </div>
-    );
+    return <ModuleSkeleton label="Verifying seat authorization..." />;
   }
   if (!user || !user.capabilities[requiredCapability]) {
     return <Navigate to="/calendar" replace />;
@@ -80,13 +97,7 @@ export function AppRouter() {
                 element={
                   <ModuleGuard requiredCapability={mod.requiredCapability}>
                     <ModuleErrorBoundary moduleName={mod.name}>
-                      <Suspense
-                        fallback={
-                          <div className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
-                            Loading {mod.name}...
-                          </div>
-                        }
-                      >
+                      <Suspense fallback={<ModuleSkeleton label={`Loading ${mod.name}...`} />}>
                         <LazyComponent />
                       </Suspense>
                     </ModuleErrorBoundary>

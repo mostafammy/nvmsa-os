@@ -43,15 +43,28 @@ export function DayCell({
 
   const blockedInPlacement = isPlacementMode && (!canPlaceHere || Boolean(slot));
 
-  let surfaceClass = 'border-slate-200 bg-white hover:border-teal-500 hover:bg-teal-50/40';
+  let surfaceClass =
+    'border-line bg-surface hover:border-brand/55 hover:bg-brand-soft/25';
   if (slot) {
-    surfaceClass = `${palette.cellSurface} ${palette.cellBorder} shadow-2xs hover:brightness-[0.98]`;
+    surfaceClass = `${palette.cellSurface} ${palette.cellBorder} shadow-[0_1px_2px_rgb(20_32_30/0.05)]`;
   } else if (canPlaceHere) {
     surfaceClass =
-      'border-2 border-dashed border-teal-600 bg-teal-50/50 hover:bg-teal-100/60';
+      'border-2 border-dashed border-brand bg-brand-soft/45 hover:bg-brand-soft/75';
+  } else if (isToday) {
+    surfaceClass =
+      'border-brand/45 bg-brand-soft/35 hover:border-brand hover:bg-brand-soft/55';
   } else if (isPast) {
-    surfaceClass = 'border-slate-200/70 bg-slate-50 text-slate-500';
+    surfaceClass =
+      'border-transparent bg-sunken/65 hover:border-line hover:bg-sunken';
   }
+
+  const stateLabel = slot
+    ? `${slot.orgUnitId}: ${slot.title}`
+    : canPlaceHere
+      ? 'Available for placement'
+      : isPast
+        ? 'Past day'
+        : 'Open day';
 
   return (
     <button
@@ -60,26 +73,34 @@ export function DayCell({
       tabIndex={tabIndex}
       disabled={blockedInPlacement}
       aria-disabled={blockedInPlacement || undefined}
+      aria-label={`${cell.isoDate}${isToday ? ', today' : ''}, ${stateLabel}`}
       onClick={() => onSelect(cell.isoDate)}
       onKeyDown={(event) => {
         if (onFocusMove) {
           onFocusMove(cell.isoDate, event.key);
         }
       }}
-      className={`group relative flex min-h-[78px] flex-col items-start justify-between rounded-xl border p-1.5 text-start transition-all sm:min-h-[90px] sm:p-2 ${surfaceClass} ${
-        !cell.inCurrentMonth ? 'opacity-65' : ''
-      } ${isFilteredOut ? 'opacity-30' : ''} ${
-        blockedInPlacement ? 'cursor-not-allowed opacity-45' : 'cursor-pointer'
-      } ${isToday ? 'ring-2 ring-teal-700 ring-offset-1' : ''}`}
+      className={`group lift press relative flex min-h-[72px] flex-col items-start justify-between overflow-hidden rounded-[14px] border p-1.5 text-start sm:min-h-[96px] sm:rounded-2xl sm:p-2.5 ${surfaceClass} ${
+        !cell.inCurrentMonth ? 'opacity-45' : ''
+      } ${isFilteredOut ? 'opacity-25' : ''} ${
+        blockedInPlacement ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
+      } ${isToday ? 'ring-2 ring-brand ring-offset-2 ring-offset-surface' : ''}`}
     >
+      {slot && (
+        <span
+          aria-hidden="true"
+          className={`absolute inset-x-0 top-0 h-[3px] ${palette.dotClass}`}
+        />
+      )}
+
       <div className="flex w-full items-center justify-between gap-1">
         <span
-          className={`text-xs font-bold ${
+          className={`font-mono text-[13px] font-medium leading-none tabular-nums sm:text-[14px] ${
             isToday
-              ? 'inline-flex h-5 w-5 items-center justify-center rounded-full bg-teal-700 text-white'
+              ? 'inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white'
               : isPast && !slot
-                ? 'text-slate-500'
-                : 'text-slate-800'
+                ? 'text-muted'
+                : 'text-ink'
           }`}
         >
           {cell.dayNumber}
@@ -87,15 +108,21 @@ export function DayCell({
 
         {slot ? (
           canViewerEdit ? (
-            <Pencil className="h-3 w-3 shrink-0 text-slate-700" aria-label="Editable by you" />
+            <Pencil
+              className="h-3.5 w-3.5 shrink-0 text-ink-soft"
+              aria-hidden="true"
+            />
           ) : (
-            <Lock className="h-3 w-3 shrink-0 text-slate-600" aria-label="Booked" />
+            <Lock
+              className="h-3.5 w-3.5 shrink-0 text-muted"
+              aria-hidden="true"
+            />
           )
         ) : (
           viewer &&
           (!isPast || viewer.capabilities.canBackfillPastDates) && (
             <Plus
-              className="h-3.5 w-3.5 shrink-0 text-slate-500 group-hover:text-teal-700"
+              className="h-3.5 w-3.5 shrink-0 text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 group-hover:text-brand"
               aria-hidden="true"
             />
           )
@@ -103,31 +130,34 @@ export function DayCell({
       </div>
 
       {slot ? (
-        <div className="mt-1 w-full min-w-0 space-y-0.5">
+        <div className="mt-1.5 w-full min-w-0 space-y-1">
           <span
-            className={`inline-block max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold leading-tight ${palette.badgeClass}`}
+            className={`inline-block max-w-full truncate rounded-md border px-1 py-0.5 font-mono text-[12px] font-medium leading-none ${palette.badgeClass}`}
           >
             {slot.orgUnitId}
           </span>
           <p
             dir="auto"
-            className="line-clamp-2 break-words text-[10px] font-semibold leading-snug text-slate-800 sm:text-[11px]"
+            className="hidden line-clamp-2 break-words text-[12px] font-medium leading-snug text-ink sm:block"
           >
             {slot.title}
           </p>
         </div>
+      ) : canPlaceHere ? (
+        <span className="font-mono text-[12px] font-medium leading-none text-brand-strong">
+          Place
+        </span>
       ) : (
         <span
-          className={`text-[10px] font-semibold ${
-            canPlaceHere
-              ? 'text-teal-800'
+          aria-hidden="true"
+          className={`h-1.5 w-1.5 rounded-full transition-colors duration-150 ${
+            isToday
+              ? 'bg-brand'
               : isPast
-                ? 'text-slate-500'
-                : 'text-slate-600 group-hover:text-teal-800'
+                ? 'bg-transparent'
+                : 'bg-ink/15 group-hover:bg-brand'
           }`}
-        >
-          {canPlaceHere ? 'Place' : isPast ? 'Past' : 'Open'}
-        </span>
+        />
       )}
     </button>
   );

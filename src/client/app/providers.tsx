@@ -60,17 +60,18 @@ function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex flex-col items-center gap-2 px-4"
+        className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex flex-col items-center gap-2 px-4"
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto rounded-xl px-4 py-2.5 text-xs font-semibold shadow-lg ${
+            role="status"
+            className={`animate-toast pointer-events-auto rounded-full px-4 py-2.5 text-[13px] font-medium shadow-[0_12px_28px_-10px_rgb(20_32_30/0.45)] ${
               toast.tone === 'error'
                 ? 'bg-red-700 text-white'
                 : toast.tone === 'success'
-                  ? 'bg-teal-700 text-white'
-                  : 'bg-slate-900 text-white'
+                  ? 'bg-brand text-white'
+                  : 'bg-ink text-paper'
             }`}
           >
             {toast.message}
@@ -98,7 +99,10 @@ function ServiceWorkerUpdateBanner() {
   if (!waitingWorker) return null;
 
   return (
-    <div className="fixed inset-x-0 top-16 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl border border-teal-200 bg-teal-900 px-4 py-2.5 text-xs text-white shadow-lg">
+    <div
+      role="status"
+      className="animate-toast fixed inset-x-4 top-[72px] z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-full border border-line-strong bg-ink py-2 ps-4 pe-2 text-[13px] font-medium text-paper shadow-[0_16px_36px_-12px_rgb(20_32_30/0.5)]"
+    >
       <span>A new NVMSA OS update is ready.</span>
       <button
         type="button"
@@ -106,7 +110,7 @@ function ServiceWorkerUpdateBanner() {
           waitingWorker.postMessage({ type: 'SKIP_WAITING' });
           window.location.reload();
         }}
-        className="cursor-pointer rounded-lg bg-white px-2.5 py-1 font-bold text-teal-900 hover:bg-teal-50"
+        className="press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-paper px-4 text-[13px] font-medium text-ink transition-colors hover:bg-sunken"
       >
         Reload
       </button>

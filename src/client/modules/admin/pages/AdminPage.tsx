@@ -21,6 +21,41 @@ import {
   updateAdminSeat,
 } from '../api/admin.queries';
 
+function ActiveToggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-[13px] font-medium text-ink-soft select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        aria-label={label}
+        className="peer sr-only"
+      />
+      <span
+        aria-hidden="true"
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand ${
+          checked ? 'border-brand bg-brand' : 'border-line-strong bg-sunken'
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 rounded-full bg-surface shadow-xs transition-transform duration-200 ease-[var(--ease-enter)] ${
+            checked ? 'translate-x-5' : 'translate-x-1'
+          }`}
+        />
+      </span>
+      <span>Active</span>
+    </label>
+  );
+}
+
 function SeatRowCard({
   seat,
   requiresReason,
@@ -54,36 +89,30 @@ function SeatRowCard({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs"
-    >
+    <form onSubmit={handleSubmit} className="panel space-y-3 p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-slate-900">{seat.seatCode}</span>
-            <Badge className="border-slate-200 bg-slate-100 text-slate-700">
-              {seat.branch.replace('_', ' ')}
-            </Badge>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[15px] font-medium text-ink">{seat.seatCode}</span>
+            <Badge>{seat.branch.replace('_', ' ')}</Badge>
             {!seat.isActive && (
-              <Badge className="border-red-200 bg-red-50 text-red-700">Inactive</Badge>
+              <Badge className="border-red-200 bg-red-50 text-red-800">Inactive</Badge>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-slate-600">{seat.title}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-            Scope: {seat.allowedOrgUnits.join(', ') || 'All Units'}
+          <p className="mt-1 text-[14px] text-ink-soft">{seat.title}</p>
+          <p className="mt-0.5 text-[13px] text-muted">
+            Scope:{' '}
+            <span className="font-mono text-ink-soft">
+              {seat.allowedOrgUnits.join(', ') || 'All Units'}
+            </span>
           </p>
         </div>
 
-        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
-          />
-          Active
-        </label>
+        <ActiveToggle
+          checked={isActive}
+          onChange={setIsActive}
+          label={`Toggle ${seat.seatCode} active`}
+        />
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -93,7 +122,7 @@ function SeatRowCard({
           aria-label={`Assigned Gmail for ${seat.seatCode}`}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-teal-600 focus:outline-none"
+          className="field flex-1"
         />
         {requiresReason && (
           <input
@@ -103,7 +132,7 @@ function SeatRowCard({
             placeholder="Audit reason..."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 sm:w-48"
+            className="field sm:w-52"
           />
         )}
         <Button type="submit" size="sm" disabled={!dirty || isBusy}>
@@ -111,7 +140,7 @@ function SeatRowCard({
         </Button>
       </div>
       {email.trim().toLowerCase() !== seat.assignedEmail && (
-        <p className="text-[11px] font-medium text-amber-800">
+        <p className="text-[13px] font-medium text-amber-900">
           Saving revokes active login sessions for {seat.assignedEmail} immediately.
         </p>
       )}
@@ -161,25 +190,25 @@ function OrgUnitRowCard({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs"
+      className="panel relative space-y-3 overflow-hidden p-4 sm:p-5"
     >
-      <div className="flex items-center justify-between gap-2">
+      <span
+        aria-hidden="true"
+        className={`absolute inset-y-0 start-0 w-1 ${palette.dotClass}`}
+      />
+      <div className="flex items-center justify-between gap-2 ps-1">
         <div className="flex items-center gap-2">
           <Badge className={palette.badgeClass}>{unit.code}</Badge>
-          <span className="text-xs font-medium text-slate-500">{unit.kind}</span>
+          <span className="font-mono text-[12px] text-muted">{unit.kind}</span>
         </div>
-        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
-          />
-          Active
-        </label>
+        <ActiveToggle
+          checked={isActive}
+          onChange={setIsActive}
+          label={`Toggle ${unit.code} active`}
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
+      <div className="grid grid-cols-1 gap-2 ps-1 sm:grid-cols-[1fr_auto_auto]">
         <input
           type="text"
           required
@@ -188,13 +217,13 @@ function OrgUnitRowCard({
           aria-label={`Name for ${unit.code}`}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900"
+          className="field"
         />
         <select
           aria-label={`Color token for ${unit.code}`}
           value={accentToken}
           onChange={(e) => setAccentToken(e.target.value as AccentToken)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900"
+          className="field"
         >
           {ACCENT_TOKENS.map((token) => (
             <option key={token} value={token}>
@@ -207,15 +236,17 @@ function OrgUnitRowCard({
         </Button>
       </div>
       {requiresReason && dirty && (
-        <input
-          type="text"
-          required
-          minLength={3}
-          placeholder="Audit reason required..."
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900"
-        />
+        <div className="ps-1">
+          <input
+            type="text"
+            required
+            minLength={3}
+            placeholder="Audit reason required..."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="field"
+          />
+        </div>
       )}
     </form>
   );
@@ -307,30 +338,46 @@ export function AdminPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-2xs">
-        <div className="flex items-center gap-2 text-xs text-slate-700">
-          <ShieldCheck className="h-4 w-4 text-teal-700" />
-          <span className="font-semibold">
-            Managing as {user?.tier === 'super_admin' ? 'System' : user?.seatCode}
+    <div className="animate-enter space-y-4 sm:space-y-5">
+      <div className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
+        <div className="flex items-center gap-2.5 text-[14px] text-ink-soft">
+          <ShieldCheck className="h-5 w-5 text-brand" />
+          <span className="font-medium">
+            Managing as{' '}
+            <span className="font-mono text-ink">
+              {user?.tier === 'super_admin' ? 'System' : user?.seatCode}
+            </span>
           </span>
         </div>
 
-        <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <div
+          role="tablist"
+          aria-label="Governance sections"
+          className="relative inline-grid grid-cols-2 rounded-full border border-line bg-sunken p-1"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-1 start-1 w-[calc(50%-0.25rem)] rounded-full bg-surface shadow-[0_1px_3px_rgb(20_32_30/0.12)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
+            style={{ transform: tab === 'units' ? 'translateX(100%)' : 'translateX(0%)' }}
+          />
           <button
             type="button"
+            role="tab"
+            aria-selected={tab === 'seats'}
             onClick={() => setTab('seats')}
-            className={`cursor-pointer rounded-lg px-3 py-1 text-xs font-bold ${
-              tab === 'seats' ? 'bg-white text-teal-700 shadow-2xs' : 'text-slate-600'
+            className={`relative z-10 min-h-11 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors ${
+              tab === 'seats' ? 'text-ink' : 'text-muted hover:text-ink'
             }`}
           >
             Official Seats ({seatsQuery.data?.length ?? 13})
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={tab === 'units'}
             onClick={() => setTab('units')}
-            className={`cursor-pointer rounded-lg px-3 py-1 text-xs font-bold ${
-              tab === 'units' ? 'bg-white text-teal-700 shadow-2xs' : 'text-slate-600'
+            className={`relative z-10 min-h-11 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors ${
+              tab === 'units' ? 'text-ink' : 'text-muted hover:text-ink'
             }`}
           >
             Org Units ({unitsQuery.data?.length ?? 11})
@@ -341,8 +388,13 @@ export function AdminPage() {
       {tab === 'seats' ? (
         <section className="space-y-3">
           {seatsQuery.isLoading ? (
-            <div className="rounded-2xl bg-white p-6 text-center text-xs text-slate-500">
-              Loading official seats...
+            <div className="space-y-3" aria-busy="true">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="panel space-y-3 p-5">
+                  <div className="skeleton h-5 w-36" />
+                  <div className="skeleton h-11 w-full" />
+                </div>
+              ))}
             </div>
           ) : (
             seatsQuery.data?.map((seat) => (
@@ -362,50 +414,52 @@ export function AdminPage() {
         <section className="space-y-4">
           <form
             onSubmit={handleCreateUnit}
-            className="space-y-3 rounded-2xl border border-teal-200 bg-white p-4 shadow-2xs"
+            className="panel space-y-3.5 border-brand/30 p-4 sm:p-5"
           >
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-              <Users className="h-4 w-4 text-teal-700" />
+            <div className="flex items-center gap-2 text-[15px] font-medium text-ink">
+              <Users className="h-4 w-4 text-brand" />
               <span>Add Organization Unit</span>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
               <input
                 type="text"
                 required
                 minLength={2}
                 maxLength={24}
+                aria-label="Unit code"
                 placeholder="Code (e.g. FSD)"
                 value={newCode}
                 onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900"
+                className="field"
               />
               <input
                 type="text"
                 required
                 minLength={2}
                 maxLength={120}
+                aria-label="Full unit name"
                 placeholder="Full Unit Name"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 sm:col-span-2"
+                className="field sm:col-span-2"
               />
               <select
                 aria-label="Organization unit kind"
                 value={newKind}
                 onChange={(e) => setNewKind(e.target.value as OrgUnitKind)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900"
+                className="field"
               >
                 <option value="COMMITTEE">Committee</option>
                 <option value="DIVISION">Division</option>
                 <option value="BOARD">Board</option>
               </select>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               <select
                 aria-label="New organization unit color"
                 value={newAccent}
                 onChange={(e) => setNewAccent(e.target.value as AccentToken)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900"
+                className="field sm:w-44"
               >
                 {ACCENT_TOKENS.map((token) => (
                   <option key={token} value={token}>
@@ -418,10 +472,11 @@ export function AdminPage() {
                   type="text"
                   required
                   minLength={3}
+                  aria-label="Audit reason"
                   placeholder="Audit reason..."
                   value={newReason}
                   onChange={(e) => setNewReason(e.target.value)}
-                  className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900"
+                  className="field flex-1"
                 />
               )}
               <Button type="submit" size="sm" disabled={createUnitMutation.isPending}>

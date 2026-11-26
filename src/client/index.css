@@ -1,4 +1,56 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../");
+@source "../../index.html";
+@import "@fontsource-variable/chivo/wght.css";
+@import "@fontsource/chivo-mono/400.css";
+@import "@fontsource/chivo-mono/500.css";
+
+/*
+ * NVMSA OS design tokens (tasteskill deal: software kind, client brand colours via `start.mjs brand`,
+ * type pairing "chivo"). Paper ground, one warm near-black ink, NVMSA teal as the only action colour.
+ * Committee/division accents (shared/constants/palette.ts) stay the data colours inside the grid.
+ */
+@theme {
+  --font-sans: "Chivo Variable", "Chivo", system-ui, -apple-system, "Segoe UI", "Geeza Pro", "Noto Sans Arabic", sans-serif;
+  --font-display: "Chivo Variable", "Chivo", system-ui, -apple-system, sans-serif;
+  --font-mono: "Chivo Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --color-paper: #f6f5f1;
+  --color-surface: #ffffff;
+  --color-sunken: #edece7;
+  --color-ink: #14201e;
+  --color-ink-soft: #2a3532;
+  --color-muted: #59615f;
+  --color-line: rgb(20 32 30 / 0.12);
+  --color-line-strong: rgb(20 32 30 / 0.22);
+  --color-brand: #0f766e;
+  --color-brand-strong: #0b5f58;
+  --color-brand-soft: #e2f0ec;
+
+  --ease-ui: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-enter: enter 700ms var(--ease-enter) both;
+  --animate-toast: toast-in 260ms var(--ease-enter) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-pulse-dot: pulse-dot 2.4s ease-out infinite;
+
+  @keyframes enter {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  @keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 0 rgb(255 255 255 / 0.55); }
+    70%, 100% { box-shadow: 0 0 0 8px rgb(255 255 255 / 0); }
+  }
+}
 
 @layer base {
   html,
@@ -6,6 +58,96 @@
   #root {
     height: 100%;
     overscroll-behavior-y: none;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "tnum" 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-brand-soft);
+    color: var(--color-ink);
+  }
+}
+
+@layer components {
+  /* One card recipe for every surface panel. */
+  .panel {
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    border-radius: 1.25rem;
+  }
+
+  /* One field recipe: 44px tall, 16px text (no iOS zoom), ink border on focus. */
+  .field {
+    width: 100%;
+    min-height: 2.75rem;
+    border-radius: 0.875rem;
+    border: 1px solid var(--color-line-strong);
+    background: var(--color-surface);
+    padding: 0.625rem 0.875rem;
+    font-size: 1rem;
+    line-height: 1.4;
+    color: var(--color-ink);
+    transition: border-color 150ms var(--ease-ui), box-shadow 150ms var(--ease-ui);
+  }
+  .field::placeholder {
+    color: color-mix(in srgb, var(--color-muted) 80%, transparent);
+  }
+  .field:hover {
+    border-color: color-mix(in srgb, var(--color-ink) 40%, transparent);
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 18%, transparent);
+  }
+  select.field {
+    appearance: none;
+    padding-inline-end: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2314201e' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+  }
+  textarea.field {
+    min-height: 5rem;
+    resize: vertical;
+  }
+
+  .field-label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-ink-soft);
+  }
+
+  /* Skeleton shimmer for loading states. */
+  .skeleton {
+    border-radius: 0.75rem;
+    background: linear-gradient(90deg, var(--color-sunken) 25%, #f4f3ef 37%, var(--color-sunken) 63%);
+    background-size: 400% 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -17,13 +159,28 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Fine-pointer hover lift for interactive surfaces (cards, cells). Touch gets the press only. */
+@media (hover: hover) and (pointer: fine) {
+  .lift {
+    transition: transform 180ms var(--ease-ui), box-shadow 180ms var(--ease-ui), border-color 150ms var(--ease-ui);
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -14px rgb(20 32 30 / 0.28);
+  }
+}
+.press:active {
+  transform: translateY(1px) scale(0.985);
+  transition-duration: 90ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 150ms !important;
+    animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 150ms !important;
+    transition-duration: 1ms !important;
     scroll-behavior: auto !important;
   }
 }

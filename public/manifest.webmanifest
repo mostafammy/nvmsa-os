@@ -4,7 +4,7 @@
   "description": "Modular, mobile-first operating system for New Valley Medical Students' Association.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
+  "background_color": "#f6f5f1",
   "theme_color": "#0f766e",
   "orientation": "portrait-primary",
   "icons": [

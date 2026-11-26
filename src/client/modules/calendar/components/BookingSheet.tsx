@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Copy, ExternalLink, History, ShieldAlert } from 'lucide-react';
+import { CalendarDays, Check, Copy, ExternalLink, History, Lock, ShieldAlert } from 'lucide-react';
 import { resolveAccentPalette } from '@shared/constants';
 import type {
   BookSlotInput,
@@ -70,10 +70,12 @@ function resolvePermittedOrgUnits(
 }
 
 function OrgUnitPicker({
+  id,
   permittedUnits,
   value,
   onChange,
 }: {
+  id: string;
   permittedUnits: OrgUnit[];
   value: string;
   onChange: (nextUnitId: string) => void;
@@ -82,7 +84,7 @@ function OrgUnitPicker({
     const only = permittedUnits[0];
     const palette = resolveAccentPalette(only?.accentToken);
     return (
-      <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
+      <div className="flex min-h-11 items-center rounded-[14px] border border-line bg-paper px-3.5">
         <Badge className={palette.badgeClass}>{only?.code ?? value}</Badge>
       </div>
     );
@@ -90,18 +92,19 @@ function OrgUnitPicker({
 
   if (permittedUnits.length === 2) {
     return (
-      <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
+      <div className="grid grid-cols-2 gap-1.5 rounded-[14px] border border-line bg-sunken p-1">
         {permittedUnits.map((unit) => {
           const active = value === unit.id;
           return (
             <button
               key={unit.id}
               type="button"
+              aria-pressed={active}
               onClick={() => onChange(unit.id)}
-              className={`cursor-pointer rounded-lg py-1.5 text-xs font-bold transition-colors ${
+              className={`min-h-10 cursor-pointer rounded-[10px] text-[13px] font-medium transition-colors ${
                 active
-                  ? 'bg-teal-700 text-white shadow-2xs'
-                  : 'text-slate-700 hover:bg-white'
+                  ? 'bg-ink text-paper shadow-[0_1px_2px_rgb(20_32_30/0.14)]'
+                  : 'text-ink-soft hover:bg-surface/70 hover:text-ink'
               }`}
             >
               {unit.code}
@@ -114,10 +117,11 @@ function OrgUnitPicker({
 
   return (
     <select
+      id={id}
       aria-label="Committee or Division"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-600 focus:outline-none"
+      className="field"
     >
       {permittedUnits.map((unit) => (
         <option key={unit.id} value={unit.id}>
@@ -135,10 +139,15 @@ function SlotAuditTimeline({ slotId }: { slotId: string }) {
   });
 
   if (isLoading) {
-    return <p className="text-xs text-slate-500">Loading history...</p>;
+    return (
+      <div className="space-y-2" aria-busy="true">
+        <div className="skeleton h-14 w-full" />
+        <div className="skeleton h-14 w-full" />
+      </div>
+    );
   }
   if (!history || history.length === 0) {
-    return <p className="text-xs text-slate-500">No audit entries recorded yet.</p>;
+    return <p className="text-[13px] text-muted">No audit entries recorded yet.</p>;
   }
 
   return (
@@ -146,15 +155,15 @@ function SlotAuditTimeline({ slotId }: { slotId: string }) {
       {history.map((entry) => (
         <li
           key={entry.id}
-          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+          className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[13px]"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="font-bold text-slate-800">{entry.action}</span>
-            <span className="text-[11px] text-slate-500">
+            <span className="font-mono text-[12px] font-medium text-ink">{entry.action}</span>
+            <span className="font-mono text-[12px] text-muted">
               {new Date(entry.createdAt).toLocaleString()}
             </span>
           </div>
-          <p className="mt-0.5 text-slate-600">
+          <p className="mt-1 text-ink-soft">
             By {entry.actorName} ({entry.actorRole})
           </p>
         </li>
@@ -404,12 +413,15 @@ export function BookingSheet({
     >
       <div className="space-y-4">
         {conflictInfo && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950 space-y-2">
-            <div className="flex items-start gap-2">
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+          <div
+            role="alert"
+            className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-[13px] text-amber-950"
+          >
+            <div className="flex items-start gap-2.5">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" />
               <div>
-                <p className="font-bold">This day was just booked</p>
-                <p className="mt-0.5">
+                <p className="font-medium">This day was just booked</p>
+                <p className="mt-0.5 leading-relaxed">
                   Occupied by <strong>{conflictInfo.winner.orgUnitId}</strong>:{' '}
                   {conflictInfo.winner.title}
                 </p>
@@ -428,8 +440,11 @@ export function BookingSheet({
         )}
 
         {staleLatest && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900 space-y-2">
-            <p className="font-bold">Updated concurrently (v{staleLatest.version})</p>
+          <div
+            role="alert"
+            className="space-y-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-[13px] text-red-900"
+          >
+            <p className="font-medium">Updated concurrently (v{staleLatest.version})</p>
             <p>
               Latest title: <strong>{staleLatest.title}</strong> ({staleLatest.orgUnitId})
             </p>
@@ -456,16 +471,17 @@ export function BookingSheet({
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className={slotPalette.badgeClass}>{slot.orgUnitId}</Badge>
-              <Badge>{slot.contentType}</Badge>
-              <Badge className="border-emerald-200 bg-emerald-50 text-emerald-800">Booked</Badge>
+              <Badge>{slot.contentType.replace('_', ' ')}</Badge>
+              <Badge className="border-emerald-200 bg-emerald-50 text-emerald-900">Booked</Badge>
             </div>
-            <div className="space-y-1.5 rounded-xl bg-slate-50 p-3.5 text-sm text-slate-700">
-              <p className="font-semibold text-slate-900">{slotUnit?.name ?? slot.orgUnitId}</p>
-              <p className="text-xs text-slate-600">
-                Seat: {slot.ownerSeatCode} · Booked by {slot.creatorName}
+            <div className="space-y-2 rounded-2xl border border-line bg-paper p-4 text-[14px] text-ink-soft">
+              <p className="font-medium text-ink">{slotUnit?.name ?? slot.orgUnitId}</p>
+              <p className="text-[13px] text-muted">
+                Seat: <span className="font-mono text-ink-soft">{slot.ownerSeatCode}</span> · Booked
+                by {slot.creatorName}
               </p>
               {isManagedSlot(slot) && slot.notes && (
-                <p dir="auto" className="pt-1.5 text-xs text-slate-700">
+                <p dir="auto" className="border-t border-line pt-2.5 text-[14px] leading-relaxed text-ink-soft">
                   {slot.notes}
                 </p>
               )}
@@ -474,15 +490,15 @@ export function BookingSheet({
                   href={slot.assetUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 pt-1 text-xs font-semibold text-teal-700 underline"
+                  className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-brand underline decoration-brand/40 underline-offset-4 hover:decoration-brand"
                 >
-                  Open Asset Link <ExternalLink className="h-3 w-3" />
+                  Open Asset Link <ExternalLink className="h-4 w-4" />
                 </a>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="secondary" onClick={() => void handleCopySummary()}>
-                {copiedSummary ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedSummary ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 {copiedSummary ? 'Copied' : 'Copy Summary'}
               </Button>
               {user && (
@@ -491,7 +507,7 @@ export function BookingSheet({
                   variant="ghost"
                   onClick={() => setShowHistory((prev) => !prev)}
                 >
-                  <History className="h-3.5 w-3.5" />
+                  <History className="h-4 w-4" />
                   History
                 </Button>
               )}
@@ -499,14 +515,17 @@ export function BookingSheet({
             {showHistory && user && <SlotAuditTimeline slotId={slot.id} />}
           </div>
         ) : !slot && !user ? (
-          <div className="space-y-3 py-2 text-center">
-            <p className="text-sm font-bold text-slate-900">This Cairo date is open</p>
-            <p className="text-xs text-slate-600">
+          <div className="flex flex-col items-center space-y-3 py-3 text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+              <CalendarDays className="h-6 w-6" />
+            </div>
+            <p className="text-[16px] font-medium text-ink">This Cairo date is open</p>
+            <p className="max-w-sm text-[14px] leading-relaxed text-muted">
               Sign in with your official NVMSA Google account to book {dayLabel} for your
               committee or division.
             </p>
             <Button
-              size="sm"
+              className="mt-1 w-full sm:w-auto"
               onClick={() => {
                 sessionStorage.setItem(
                   DRAFT_STORAGE_KEY,
@@ -526,21 +545,27 @@ export function BookingSheet({
             </Button>
           </div>
         ) : blockedPastBooking ? (
-          <div className="space-y-2 py-2 text-center">
-            <p className="text-sm font-bold text-slate-900">Past Date Locked</p>
-            <p className="text-xs text-slate-600">
+          <div className="flex flex-col items-center space-y-2.5 py-4 text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sunken text-ink-soft">
+              <Lock className="h-5 w-5" />
+            </div>
+            <p className="text-[16px] font-medium text-ink">Past Date Locked</p>
+            <p className="max-w-sm text-[14px] leading-relaxed text-muted">
               Non-privileged seats cannot create new bookings on past Cairo dates ({selectedDate}).
             </p>
           </div>
         ) : showOverrideForm && slot && canOverride ? (
-          <form onSubmit={handleOverrideSubmit} className="space-y-3">
-            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
+          <form onSubmit={handleOverrideSubmit} className="space-y-4">
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-[13px] leading-relaxed text-amber-950">
               Overriding moves <strong>{slot.title}</strong> ({slot.orgUnitId}) to the Relocation
               Queue atomically and places your new post on {selectedDate}.
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">New Post Title</label>
+              <label htmlFor="override-title" className="field-label">
+                New Post Title
+              </label>
               <input
+                id="override-title"
                 dir="auto"
                 type="text"
                 required
@@ -548,24 +573,30 @@ export function BookingSheet({
                 maxLength={120}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900"
+                className="field"
               />
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Org Unit</label>
+                <label htmlFor="override-unit" className="field-label">
+                  Org Unit
+                </label>
                 <OrgUnitPicker
+                  id="override-unit"
                   permittedUnits={permittedUnits}
                   value={orgUnitId}
                   onChange={setOrgUnitId}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Content Type</label>
+                <label htmlFor="override-type" className="field-label">
+                  Content Type
+                </label>
                 <select
+                  id="override-type"
                   value={contentType}
                   onChange={(e) => setContentType(e.target.value as ContentType)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                  className="field"
                 >
                   {CONTENT_TYPES.map((item) => (
                     <option key={item.value} value={item.value}>
@@ -576,10 +607,11 @@ export function BookingSheet({
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">
+              <label htmlFor="override-reason" className="field-label">
                 Mandatory Override Reason
               </label>
               <input
+                id="override-reason"
                 type="text"
                 required
                 minLength={3}
@@ -587,7 +619,7 @@ export function BookingSheet({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Explain why the existing slot is being displaced..."
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900"
+                className="field"
               />
             </div>
             <div className="flex gap-2">
@@ -601,12 +633,13 @@ export function BookingSheet({
           </form>
         ) : (
           <div className="space-y-4">
-            <form onSubmit={handleSubmit} className="space-y-3.5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">
+                <label htmlFor="slot-title" className="field-label">
                   Post Title
                 </label>
                 <input
+                  id="slot-title"
                   dir="auto"
                   type="text"
                   required
@@ -618,16 +651,17 @@ export function BookingSheet({
                     setIdempotencyKey(createIdempotencyKey());
                   }}
                   placeholder="e.g., World Health Day Awareness Campaign"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-teal-600 focus:outline-none"
+                  className="field"
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-700">
+                  <label htmlFor="slot-unit" className="field-label">
                     Committee / Division
                   </label>
                   <OrgUnitPicker
+                    id="slot-unit"
                     permittedUnits={permittedUnits}
                     value={orgUnitId}
                     onChange={(next) => {
@@ -638,16 +672,17 @@ export function BookingSheet({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-700">
+                  <label htmlFor="slot-type" className="field-label">
                     Content Type
                   </label>
                   <select
+                    id="slot-type"
                     value={contentType}
                     onChange={(e) => {
                       setContentType(e.target.value as ContentType);
                       setIdempotencyKey(createIdempotencyKey());
                     }}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-600 focus:outline-none"
+                    className="field"
                   >
                     {CONTENT_TYPES.map((item) => (
                       <option key={item.value} value={item.value}>
@@ -659,10 +694,11 @@ export function BookingSheet({
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">
+                <label htmlFor="slot-asset" className="field-label">
                   Asset Link (https:// optional)
                 </label>
                 <input
+                  id="slot-asset"
                   type="url"
                   value={assetUrl}
                   onChange={(e) => {
@@ -670,15 +706,16 @@ export function BookingSheet({
                     setIdempotencyKey(createIdempotencyKey());
                   }}
                   placeholder="https://drive.google.com/..."
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-teal-600 focus:outline-none"
+                  className="field"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">
+                <label htmlFor="slot-notes" className="field-label">
                   Internal Notes (Seat Holders Only)
                 </label>
                 <textarea
+                  id="slot-notes"
                   dir="auto"
                   rows={2}
                   maxLength={500}
@@ -688,16 +725,17 @@ export function BookingSheet({
                     setIdempotencyKey(createIdempotencyKey());
                   }}
                   placeholder="Publish time, caption instructions, or designer contact..."
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-teal-600 focus:outline-none"
+                  className="field"
                 />
               </div>
 
               {requiresSuperAdminReason && (
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-700">
+                  <label htmlFor="slot-audit-reason" className="field-label">
                     Audit Reason (Required)
                   </label>
                   <input
+                    id="slot-audit-reason"
                     type="text"
                     required
                     minLength={3}
@@ -705,7 +743,7 @@ export function BookingSheet({
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     placeholder="Reason for break-glass calendar edit..."
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900"
+                    className="field"
                   />
                 </div>
               )}
@@ -716,13 +754,13 @@ export function BookingSheet({
             </form>
 
             {slot && canEdit && (
-              <div className="space-y-2.5 border-t border-slate-100 pt-3">
+              <div className="space-y-3 border-t border-line pt-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" variant="ghost" onClick={() => void handleCopySummary()}>
                     {copiedSummary ? (
-                      <Check className="h-3.5 w-3.5" />
+                      <Check className="h-4 w-4" />
                     ) : (
-                      <Copy className="h-3.5 w-3.5" />
+                      <Copy className="h-4 w-4" />
                     )}
                     {copiedSummary ? 'Copied' : 'Copy Summary'}
                   </Button>
@@ -731,7 +769,7 @@ export function BookingSheet({
                     variant="ghost"
                     onClick={() => setShowHistory((prev) => !prev)}
                   >
-                    <History className="h-3.5 w-3.5" />
+                    <History className="h-4 w-4" />
                     Audit Log
                   </Button>
                   {canOverride && (
@@ -751,8 +789,8 @@ export function BookingSheet({
                 {showHistory && <SlotAuditTimeline slotId={slot.id} />}
 
                 {confirmCancel ? (
-                  <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-3">
-                    <p className="text-xs font-semibold text-red-900">
+                  <div className="space-y-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+                    <p className="text-[13px] font-medium text-red-900">
                       Cancel this booked slot? This immediately frees {selectedDate}.
                     </p>
                     <div className="flex gap-2">
@@ -787,12 +825,13 @@ export function BookingSheet({
                 ) : showRelocateForm ? (
                   <form
                     onSubmit={handleQueueRelocation}
-                    className="space-y-2 rounded-xl bg-amber-50 p-3"
+                    className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-4"
                   >
-                    <label className="block text-xs font-semibold text-amber-900">
+                    <label htmlFor="relocate-reason" className="field-label !text-amber-950">
                       Reason for moving to Relocation Queue
                     </label>
                     <input
+                      id="relocate-reason"
                       dir="auto"
                       type="text"
                       required
@@ -801,7 +840,7 @@ export function BookingSheet({
                       value={relocationReason}
                       onChange={(e) => setRelocationReason(e.target.value)}
                       placeholder="e.g., Waiting for final poster approval"
-                      className="w-full rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs text-slate-900"
+                      className="field"
                     />
                     <div className="flex gap-2">
                       <Button type="submit" size="sm" disabled={isBusy} className="flex-1">
