@@ -1,650 +1,552 @@
-# NVMSA OS — Master Technical Architecture, Fluid Experience, Quality Engineering & Release Specification
+# NVMSA-RFC-001: NVMSA OS — Modular Platform & Module 1 (Content Calendar) Master Specification
 
-| Control Field | Value |
+| Field | Value |
 | :--- | :--- |
-| **Spec ID** | `NVMSA-RFC-2026-001` |
-| **Title** | NVMSA OS v2.0 — "Fluidity & Ironclad Core" |
-| **Status** | `Proposed for ARB Sign-Off` |
-| **Author** | Principal Software Engineer, Platform Architecture & Experience |
-| **Review Board** | Chief Executive Officer (Product & Delight) · Chief Technology Officer (Architecture & Security) · Principal QA Engineer (20-Yr Verification & Release Gate) |
+| **Document ID** | `NVMSA-RFC-001` |
+| **Status** | `Ready for Executive & Principal QA Sign-Off` |
+| **Author** | Principal Software Engineer |
+| **Review Board** | CEO (Product & Craft) · CTO (Architecture & Security) · Principal QA Engineer (Reliability & FMEA) |
+| **Target Platform** | Mobile-First Progressive Web App (iOS Safari, Android Chrome, Desktop Web) |
+| **Core Stack** | Cloudflare Workers (Static Assets), Hono, React 19 + Vite, Tailwind CSS v4, Cloudflare D1 (SQLite), Drizzle ORM, Better Auth |
+| **Primary Timezone** | `Africa/Cairo` (EET `UTC+2` / EEST `UTC+3`) |
 | **Baseline Commit** | `f185f62` (`main`) |
 | **Spec Branch** | `docs/nvmsa-os-master-spec` |
-| **Target Runtime** | Cloudflare Workers + Cloudflare D1 (SQLite) + React 19 SPA/PWA |
-| **Last Updated** | `2026-11-25` |
-
----
-
-## Architecture Review Board (ARB) Sign-Off Gates
-
-| Stakeholder | Mandate in "The Serious Room" | Blocking Exit Criteria for Release |
-| :--- | :--- | :--- |
-| **CEO (Product & Delight)** | Prove the app feels authentic, calm, fluid, tactile, and joyful on real mobile devices rather than a rigid form wrapper. | All 16 choreography patterns in Section 4 shipped; 60/120fps compositor-only motion; cold LCP ≤ 1.2s on 4G; zero instant layout snaps. |
-| **CTO (Architecture & Security)** | Prove architectural rigor: zero P0 auth/cache leaks, atomic D1 audit integrity, deterministic timezone math, clean module isolation, and solid branch preview pipelines. | Zero P0/P1 defects; `input: false` on auth fields; role-scoped SWR purge; `db.batch()` atomicity; ephemeral Cloudflare Worker PR preview builds live. |
-| **Principal QA Engineer (20-Yr Gate)** | Prove nothing breaks under network drop, concurrency races, Cairo midnight/DST, gesture interruption, accessibility, or supply-chain checks. | All 25 adversarial QA scenarios automated and green in CI (Miniflare D1 pool + Playwright mobile + axe-core + reduced-motion audit). |
 
 ---
 
 ## Table of Contents
 
-1. [Executive Summary & v1.0 "Serious Room" Codebase Audit](#1-executive-summary--v10-serious-room-codebase-audit)
-2. [Product Vision, Experience Philosophy & Quantitative SLOs](#2-product-vision-experience-philosophy--quantitative-slos)
-3. [Technical Architecture & Systems Design](#3-technical-architecture--systems-design)
-4. [World-Class UX, Fluid Motion & Delight Architecture](#4-world-class-ux-fluid-motion--delight-architecture)
-5. [Principal QA Engineer's Verification, Edge-Case & Chaos Specification](#5-principal-qa-engineers-verification-edge-case--chaos-specification)
-6. [Best-Practice Solid Branch Builds, CI/CD & Release Engineering](#6-best-practice-solid-branch-builds-cicd--release-engineering)
-7. [Dependency-Ordered Implementation Roadmap (7 Branches / 7 PRs)](#7-dependency-ordered-implementation-roadmap-7-branches--7-prs)
-8. [Architecture Decision Records (ADRs)](#8-architecture-decision-records-adrs)
+1. [Executive Summary, Product Philosophy & v1.0 Codebase Audit](#1-executive-summary-product-philosophy--v10-codebase-audit)
+2. [System Architecture & Mechanically Enforced SOLID Matrix](#2-system-architecture--mechanically-enforced-solid-matrix)
+3. [Domain Model, Formal State Machine, Schema Evolution & Concurrency](#3-domain-model-formal-state-machine-schema-evolution--concurrency)
+4. [API Contract, Security & STRIDE Threat Model](#4-api-contract-security--stride-threat-model)
+5. [Human Interface Guidelines, Motion Physics & 16-Item Craft Catalog](#5-human-interface-guidelines-motion-physics--16-item-craft-catalog)
+6. [Offline Resilience, Caching & Quantitative Performance Budgets](#6-offline-resilience-caching--quantitative-performance-budgets)
+7. [Principal QA War Room: 25-Scenario FMEA & Adversarial Edge-Case Matrix](#7-principal-qa-war-room-25-scenario-fmea--adversarial-edge-case-matrix)
+8. [Verification & 4-Layer Test Strategy](#8-verification--4-layer-test-strategy)
+9. [Solid Branch Builds, 8-Stage CI/CD & Release Engineering](#9-solid-branch-builds-8-stage-cicd--release-engineering)
+10. [Implementation Roadmap, ADRs & Executive Review Sign-Off Checklist](#10-implementation-roadmap-adrs--executive-review-sign-off-checklist)
 
 ---
 
-## 1. Executive Summary & v1.0 "Serious Room" Codebase Audit
+## 1. Executive Summary, Product Philosophy & v1.0 Codebase Audit
 
-NVMSA OS v1.0 (`f185f62`) establishes a clean vertical-slice modular monolith across `src/shared/`, `src/server/`, and `src/client/`, backed by Cloudflare D1's partial unique index (`calendar_slots_booked_date_uidx WHERE status = 'booked'`). However, a line-by-line engineering, security, UX, and QA audit of the current repository exposes **22 verified engineering, data-integrity, build-pipeline, and user-experience gaps** that prevent v1.0 from meeting Apple-caliber production and craft standards.
+**NVMSA OS** is the modular operational backbone of **New Valley Medical Students' Association (NVMSA)**. Rather than shipping disposable single-purpose tools that fracture member attention every academic term, NVMSA OS is architected as a single installable PWA shell backed by a **Modular Monolith** where operational workflows plug in as isolated vertical modules (`calendar` in v1.0, followed by `activities` in v1.x and `recruitment` / member hub in v2.0).
 
-This specification documents every verified gap directly against exact file paths, provides concrete architectural designs and physics constants to resolve each one permanently, and establishes an automated branch-build pipeline so no regression can ever merge to `main`.
+> **ARB Terminology & Org-Unit Reconciliation Note**: Previous draft memos referenced *"Veterinary"* and placeholder unit acronyms (*SCOURGE*, *BNSD*). Ground truth in the repository (`README.md`, `index.html`, `src/shared/constants/committees.ts`, `src/shared/constants/divisions.ts`) is **New Valley Medical Students' Association (NVMSA)** with IFMSA Standing Committees (`SCOPH`, `SCORA`, `SCORP`, `SCOME`, `SCOPE`, `SCORE`) and Support Divisions (`PNSDD`, `PSDD`, `CBDD`, `FSDD`, `EB`). Under `RFC-001`, all committees and divisions move out of hardcoded frontend arrays into the extensible D1 `org_units` table (Section 3.1), seeded with NVMSA's 11 active medical units while allowing future units without code deploys.
 
-### 1.1 Severity-Graded Defect & Gap Ledger (Verified Against Commit `f185f62`)
+Module 1 (**Content Calendar**) solves an acute distribution and coordination bottleneck across standing committees and support divisions: enforcing a strict **1-post-per-day** reach policy with zero double-booking, instant mobile availability checks for officers, creator-locked Executive Board (EB) scheduling, and a first-class **Pending Relocation** workflow.
 
-| ID | Severity | Area | Verified Evidence in Current Codebase | Concrete Impact | Target Fix Section |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `P0-SEC-01` | **P0** | Auth / Privilege Escalation | `src/server/core/auth/auth.ts:43-55` configures Better Auth `user.additionalFields.role` and `entityCode` without `input: false`. | Better Auth's `/api/auth/sign-up/email` accepts client-supplied additional fields unless explicitly locked; any external signup request can self-assign `role: "admin"`. | [Section 3.6](#36-security-auth--stride-threat-model) |
-| `P0-SEC-02` | **P0** | Client Cache / Data Leak | `src/client/core/auth/useSession.tsx:86-97` never clears `nvmsa_os_swr:*` on `signOut()`; `src/client/modules/calendar/hooks/useCalendarMonth.ts:26` passes unscoped `initialData` without `initialDataUpdatedAt`. | On a shared committee phone/tablet, an Officer signing in or browsing after an EB/Admin signs out receives cached `ManagedSlotView` (`notes`, `relocationQueue`) from `localStorage` for up to 12 hours (`cache.ts:8`). | [Section 3.5](#35-typed-api-contracts-role-scoped-caching--offline-pwa-v2) |
-| `P0-DATA-01` | **P0** | DB Atomicity / Audit Trail | `src/server/modules/calendar/calendar.service.ts:133-160, 184-212, 238-262, 280-306, 326-346` runs slot mutation and `repo.appendAuditLog()` as two sequential HTTP D1 queries without `db.batch()`. | Worker timeout or transient D1 failure between statements commits the slot mutation while dropping the audit row permanently. | [Section 3.4](#34-data-layer-d1-batch-atomicity--cairo-timezone-authority) |
-| `P0-DATA-02` | **P0** | Concurrency & Idempotency | `calendar.service.ts:326-329` omits `expectedVersion` in `cancelSlot()`; `POST /slots` and `POST /slots/:id/relocate` lack `Idempotency-Key` support. | An EB member clicking "Cancel" can delete a slot whose notes/title were just edited by Admin; flaky Cairo mobile 4G retries trigger spurious `409 Conflict` after succeeding server-side. | [Section 3.4](#34-data-layer-d1-batch-atomicity--cairo-timezone-authority) |
-| `P1-FUNC-01` | **P1** | Cross-Month Bug | `DayCell.tsx:18` allows selecting `!cell.inCurrentMonth` dates while `CalendarPage.tsx:29-30` binds `useOptimisticBooking(month)` to the *viewed* month; `RelocationDrawer.tsx:53` only checks `bookedDates` from the active month. | Booking an overflow day (`Dec 1` clicked inside November grid) inserts the optimistic slot into November's query cache instead of December's; Relocation Drawer shows occupied dates in other months as open. | [Section 3.5](#35-typed-api-contracts-role-scoped-caching--offline-pwa-v2) |
-| `P1-FUNC-02` | **P1** | Date & Schema Validation | `useCalendarMonth.ts:20` freezes `todayCairo` via `useMemo(..., [])`; `src/shared/schemas/calendar.schema.ts:8-10` validates `YearMonthSchema` with `/^\d{4}-\d{2}$/` only. | Long-lived PWA tabs highlight yesterday after `00:00 Africa/Cairo`; `GET /api/calendar/slots?month=2026-99` passes Zod validation and fails inside `Date.UTC` math. | [Section 3.4](#34-data-layer-d1-batch-atomicity--cairo-timezone-authority) |
-| `P1-FUNC-03` | **P1** | Missing Documented Features | `README.md:69` promises Admin `Override slot` and `calendar.routes.ts:38-43` exposes `GET /slots/:id/history`, yet neither has a working service/UI workflow. | Admins must manually queue another team's post before claiming a date (non-atomic 2-step race); the audit log table has zero UI visibility. | [Section 3.3](#33-domain-model-formal-state-machine--mathematical-invariants) |
-| `P1-PWA-01` | **P1** | Service Worker Fragility | `public/sw.js:20-34` caches failed/non-2xx responses, lacks SPA navigation fallback for `/calendar`, and calls `self.skipWaiting()` without client handshake. | Caching a transient 500 or missing hashed asset breaks offline reload; reloading `/calendar` offline throws browser network error; mid-session SW takeover breaks lazy-loaded Vite chunks. | [Section 3.5](#35-typed-api-contracts-role-scoped-caching--offline-pwa-v2) |
-| `P1-SEC-03` | **P1** | Auth Config & Edge Hardening | `auth.ts:30` falls back to `http://localhost:5173`; `session.ts:61-63` swallows errors silently; `src/server/index.ts` sets no CSP/HSTS/rate limits. | Misconfigured production deployment silently signs invalid OAuth/cookie origin URLs; D1 auth outages become invisible silent logouts; login endpoint lacks brute-force throttling. | [Section 3.6](#36-security-auth--stride-threat-model) |
-| `P1-BUILD-01` | **P1** | Supply-Chain & CI/CD Gaps | `package.json` lacks `"packageManager"`; `pnpm-lock.yaml` fails `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` on 6 newly published deps; `.github/workflows/ci.yml` has no PR preview deploys, Miniflare D1 tests, or Playwright E2E; `deploy.yml` applies remote migrations without backup or canary traffic shift. | Local `pnpm test`/`pnpm lint` commands fail under supply-chain quarantine policies; regressions in D1 SQL, gestures, or bundle size cannot be caught before merge. | [Section 6](#6-best-practice-solid-branch-builds-cicd--release-engineering) |
-| `P1-UX-01` | **P1** | Dead Sheet Chrome | `src/client/ui/BottomSheet.tsx:22-56` returns `null` when closed (zero enter/exit transition), renders a decorative non-interactive drag pill (`line 37`), lacks focus trap, lacks `body` scroll lock, and ignores `visualViewport` keyboard occlusion. | Opening/closing any sheet snaps harshly across the screen; swiping the handle does nothing; iOS soft keyboard hides form submit buttons; background page scrolls under modal. | [Section 4.3](#43-complete-16-item-fluid-interaction--animation-choreography-catalog) |
-| `P1-UX-02` | **P1** | Zero Physics Engine | `src/client/index.css` is 18 lines containing only base `overscroll-behavior-y` and safe-area padding; zero spring tokens, keyframe primitives, or GPU layer promotion rules exist. | Every state change (`Grid` ↔ `Agenda`, month swap, entity filter, toast stack, bottom nav, inline cancel confirm) snaps instantaneously with zero spatial continuity or tactile delight. | [Section 4.1](#41-nvmsa-spring-physics-token-system) |
-| `P1-UX-03` | **P1** | Navigation & Gestures | `CalendarGrid.tsx` only switches months via small corner arrows (`ChevronLeft`/`ChevronRight`); no horizontal swipe pager, no adjacent-month prefetch, no pull-to-refresh in standalone PWA mode. | One-handed thumb navigation on mobile feels clunky and sluggish; every month tap waits on a cold network fetch. | [Section 4.3](#43-complete-16-item-fluid-interaction--animation-choreography-catalog) |
-| `P1-UX-04` | **P1** | Accessibility & Contrast | No `prefers-reduced-motion` support; `DayCell` lacks roving tabindex (`ArrowLeft`/`Right`/`Up`/`Down`) and semantic `aria-label`; `SCOPH` (`#ea580c`), `CBDD` (`#ca8a04`), and `text-slate-300` `"Open"` label fail WCAG AA contrast checks. | Keyboard-only and screen-reader users cannot efficiently traverse a 35/42-day grid; vestibular-sensitive users lack motion reduction; light `"Open"` text (`#cbd5e1` on white, ~1.5:1) is nearly invisible in bright daylight. | [Section 4.4](#44-accessibility-wcag-22-aa-prefers-reduced-motion-degradation-matrix--arabic-rtl-readiness) |
+### 1.1 North Star Quality Bars
 
----
+1. **Zero-Friction Distribution**: Officers open a pinned link and see live availability in **< 500ms** (warm SWR) / **≤ 1.2s** (cold Egyptian 4G) with zero account creation and zero App Store friction.
+2. **Native-Grade Physicality**: Every interaction—month swipes, bottom-sheet detents, lock confirmations, and conflict rollbacks—runs on GPU-composited spring physics at **60fps–120fps** (`≤ 16.67ms` / `≤ 8.33ms` per frame) with **0.00 Cumulative Layout Shift (CLS)**.
+3. **Database-Guaranteed Truth**: Application UI is optimistic; the database is authoritative. No race condition, flaky mobile retry, or unauthorized request can violate the 1-post-per-day invariant or overwrite another EB member's slot.
 
-## 2. Product Vision, Experience Philosophy & Quantitative SLOs
+### 1.2 v1.0 Codebase Audit & RFC-001 Delta Ledger (Verified Against `f185f62`)
 
-### 2.1 Product Thesis
-NVMSA OS is the mobile-first operational cockpit for New Valley Medical Students' Association. Because medical students coordinate fast-moving public health campaigns between clinical rotations on cellular connections, the interface must behave like a **native iOS utility**: instantaneous offline-first opening, one-handed thumb ergonomics, unmistakable feedback when a committee locks a calendar day, and zero cognitive friction under pressure.
+Reviewing commit `f185f62` line-by-line identifies the exact security, concurrency, schema, CI, and UX gaps separating v1.0 from `NVMSA-RFC-001` production standards:
 
-### 2.2 Five Experience Pillars
-1. **Spatial Continuity**: Nothing teleports. Sheets rise from the tapped edge while the background shell recedes in 3D depth (`scale(0.96)`); month transitions slide along the temporal X-axis (`← Past | Future →`); toggling `Grid ↔ Agenda` morphs shared geometry.
-2. **Interruptible Spring Physics**: All interactive motion runs on critically/under-damped spring dynamics rather than fixed-duration curves. A user dragging a sheet halfway and flicking back immediately preserves finger velocity with zero bounce discontinuity.
-3. **Zero-Perceived Latency**: Stale-While-Revalidate (SWR) role-scoped hydration + idle adjacent-month prefetch (`month ± 1`) + instant tactile press feedback (`scale(0.94)`) ensure every tap responds within **1 frame (8.3ms / 16.6ms)**.
-4. **Calm Emotional Delight**: Locking a post triggers a crisp tactile lock-in choreography (subtle checkmark morph, committee-tinted pulse, optional Web Vibration/haptic pulse); hitting a 409 slot collision triggers an unmistakable horizontal damped recoil and offers a one-tap jump to the next open Cairo date.
-5. **Inclusive Craft**: Full WCAG 2.2 AA contrast, keyboard roving-tabindex navigation, focus management, explicit `prefers-reduced-motion` cross-fade degradation, and CSS logical properties (`margin-inline`, `padding-inline`, `inset-inline-start`) so future Arabic RTL support requires zero layout rewrites.
-
-### 2.3 Service-Level Objectives (SLOs) & Experience Budgets
-
-| Domain | Service-Level Indicator (SLI) | Hard Target (SLO) | Measurement Gate |
-| :--- | :--- | :--- | :--- |
-| **Availability** | Non-5xx HTTP API success ratio | **≥ 99.95%** monthly | Cloudflare Workers Analytics + synthetic probe |
-| **API Latency** | `GET /api/calendar/slots` p95 at Cairo Edge POP | **≤ 120 ms** | Hono request logger + Workers trace |
-| **Write Latency** | `POST /api/calendar/slots` p95 (atomic D1 batch) | **≤ 200 ms** | Hono request logger + Miniflare benchmark |
-| **Frame Budget** | Compositor frame time during drag/morph | **≤ 8.33 ms** (120Hz) / **≤ 16.67 ms** (60Hz) | Playwright CDP tracing (zero long frames > 50ms) |
-| **Responsiveness** | Interaction to Next Paint (INP) p75 mobile | **≤ 80 ms** | Playwright Web Vitals assertion |
-| **Visual Stability** | Cumulative Layout Shift (CLS) | **0.00** (max **0.02**) | Lighthouse CI mobile preset |
-| **Cold Load** | Largest Contentful Paint (LCP) on Fast 4G | **≤ 1.2 s** | Lighthouse CI (simulated mobile Moto G Power) |
-| **JS Budget (Entry)** | Main entry `index.js` gzipped payload (v1.0 baseline: `100.47 KB`) | **≤ 108 KB** gzipped | Vite bundle analyzer CI gate |
-| **JS Budget (Async)** | Async `calendar` + lazy `domMax` motion chunks (v1.0 calendar: `10.71 KB`) | **≤ 32 KB** gzipped | Vite bundle analyzer CI gate |
+| ID | Severity | Area | Verified v1.0 Evidence | Target RFC-001 Resolution |
+| :--- | :--- | :--- | :--- | :--- |
+| `P0-SEC-01` | **P0** | Auth / Privilege Escalation | `src/server/core/auth/auth.ts:43-55` configures `additionalFields.role` & `entityCode` without `input: false`; public sign-up is open. | Disable public self-signup (invite-only provisioning via Admin tokens) and enforce `input: false` on privileged fields. |
+| `P0-SEC-02` | **P0** | Client Cache Leak | `src/client/core/auth/useSession.tsx:86-97` never clears `nvmsa_os_swr:*` on `signOut()`; `useCalendarMonth.ts:26` passes unscoped `initialData` without `initialDataUpdatedAt`. | Partition SWR keys by auth scope (`public` vs `<role>:<userId>`), wire `initialDataUpdatedAt`, and wipe all caches on auth transitions. |
+| `P0-DATA-01` | **P0** | DB Atomicity / Audit Trail | `calendar.service.ts:133-160, 184-212, 238-262, 280-306, 326-346` runs slot writes and `appendAuditLog()` sequentially outside `db.batch()`. | Commit slot write, audit log (`diff_json`), and `idempotency_keys` atomically inside one D1 `db.batch()`. |
+| `P0-DATA-02` | **P0** | OCC & Idempotency | `cancelSlot()` (`calendar.service.ts:326-329`) omits `expectedVersion`; write endpoints lack `Idempotency-Key`; OCC returns `409` instead of `412`. | Enforce `Idempotency-Key` (24h D1 store) across all writes; require `expectedVersion` on all mutations including `DELETE`, returning `412 Precondition Failed` on version drift. |
+| `P1-SCHEMA-01` | **P1** | Schema Alignment | `calendar_slots` lacks `org_units` FK, `PUBLISHED` status, `asset_url`, `previous_date`, nullable `post_date` `CHECK` constraint, and `idempotency_keys`. | Execute Expand-and-Contract migration `0002_rfc001_expand.sql` evolving v1.0 rows losslessly into the RFC-001 schema (Section 3.1). |
+| `P1-FUNC-01` | **P1** | Cross-Month Cache Drift | `DayCell.tsx:18` selects `!cell.inCurrentMonth` dates while `useOptimisticBooking(month)` invalidates only the *viewed* month; `RelocationDrawer.tsx:53` checks only current month's `bookedDates`. | Return `{ affectedMonths }` from mutations, invalidate all affected month caches + Relocation Queue atomically, and fetch cross-month relocations/availability directly. |
+| `P1-FUNC-02` | **P1** | Date & Grid Stability | `useCalendarMonth.ts:20` freezes `todayCairo` via `useMemo(..., [])`; `YearMonthSchema` (`calendar.schema.ts:8-10`) accepts `2026-00`/`2026-99`; `buildMonthGrid` (`date.ts:83-109`) flips between 35 and 42 cells. | Add `useCairoClock()` midnight timer + `visibilitychange` refresh; tighten `YearMonthSchema` (`01`–`12`); standardize `buildMonthGrid` to **Fixed 42-Cell (6×7)** layout (`CLS = 0.00`). |
+| `P1-FUNC-03` | **P1** | Missing Documented Flows | `README.md:69` promises Admin `Override slot` and `calendar.routes.ts:38-43` exposes `GET /slots/:id/history`, but neither has working end-to-end UI or atomic override logic. | Ship atomic `ADMIN_OVERRIDE` batch command, `PUBLISHED` transition, Relocation Placement Mode, and interactive Audit History drawer. |
+| `P1-PWA-01` | **P1** | Service Worker Fragility | `public/sw.js:20-34` caches non-2xx/opaque responses, crashes offline on `/calendar` deep reloads, and executes blind `self.skipWaiting()`. | Upgrade to Workbox / safe caching (`res.ok && res.type === 'basic'`), SPA navigation fallback, and calm `"New version ready — Refresh"` update prompt. |
+| `P1-SEC-03` | **P1** | Edge Hardening | `auth.ts:30` falls back to `localhost:5173`; `session.ts:61-63` silently swallows errors; missing CSP/Origin/rate-limit middleware. | Fail startup if prod `BETTER_AUTH_URL` missing; log auth faults; enforce `Origin` check, CSP, `X-Frame-Options: DENY`, `nosniff`, and edge rate limits. |
+| `P1-BUILD-01` | **P1** | Supply-Chain & CI Gaps | `package.json` lacks `"packageManager"`; `pnpm-lock.yaml` fails `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` on 6 recently published entries; `ci.yml` has no Miniflare D1, Playwright, or PR previews. | Pin `"packageManager"`, align `pnpm-workspace.yaml` 24h quarantine rules, and deploy the 8-stage CI + ephemeral PR preview pipeline (Section 9). |
+| `P1-UX-01..04` | **P1** | Motion, Touch, BiDi & a11y | `BottomSheet.tsx` snaps abruptly with a dead drag pill, no detents, no focus trap/scroll lock, no `visualViewport` keyboard offset; `index.css` is 18 lines; no swipe pager; `text-slate-300` `"Open"` label fails AA contrast; missing `dir="auto"` and `prefers-reduced-motion`. | Implement full Section 5 motion physics engine, 16-item choreography catalog, `dir="auto"` BiDi safety, WCAG AA/AAA contrast, roving-tabindex grid, and reduced-motion crossfades. |
 
 ---
 
-## 3. Technical Architecture & Systems Design
+## 2. System Architecture & Mechanically Enforced SOLID Matrix
 
-### 3.1 System Context & Edge Topology
+NVMSA OS rejects distributed microservices (unnecessary network hops, operational overhead) and heavy poly-package monorepos (build pipeline tax) in favor of a **Single-Repo Modular Monolith** with compile-time and AST-enforced boundaries.
 
-NVMSA OS executes at the Cloudflare edge as a unified **Single-Repo Modular Monolith**, eliminating cross-origin preflight overhead and keeping client/server contracts sound via `hc<AppType>` RPC type inference.
+### 2.1 Strict Dependency Topology
 
 ```mermaid
 flowchart LR
-  subgraph Client["Mobile PWA & Motion Client (React 19 + LazyMotion)"]
-    UI["OS Shell & Calendar UI"]
-    Cache["Role-Scoped SWR Cache"]
-    SW["Service Worker v2 (App Shell + NetworkFirst)"]
-    UI <--> Cache
-    UI <--> SW
+  subgraph Client["src/client/ (React 19 Mobile-First PWA Shell)"]
+    App["app/ (OS Shell, Registry, ErrorBoundaries)"]
+    CoreC["core/ (hc AppType RPC, Role-Scoped SWR, Auth)"]
+    UI["ui/ (Atomic HIG & Physics Primitives)"]
+    ModC["modules/calendar/ (index.ts barrel -> api, hooks, components)"]
+    App --> ModC
+    ModC --> CoreC
+    ModC --> UI
   end
 
-  subgraph Edge["Cloudflare Worker Edge (Hono)"]
-    Sec["Security Headers & Rate Limiter"]
-    Sess["Fail-Closed Session Middleware"]
-    Auth["Better Auth (Hardened)"]
-    ModCal["Calendar Vertical Slice"]
-    ModAct["Activities Slice (v1.x)"]
-    Sec --> Sess
-    Sess --> Auth
-    Sess --> ModCal
-    Sess --> ModAct
+  subgraph Shared["src/shared/ (Pure TS Contracts)"]
+    Contracts["Zod Schemas, DTOs, Cairo Date & Grid Invariants"]
   end
 
-  subgraph Storage["Durable Edge Data"]
-    D1["Cloudflare D1 (SQLite + Partial Unique Index)"]
-    Idemp["Idempotency Keys Table"]
-    Audit["Append-Only Audit Logs"]
-    D1 --- Idemp
-    D1 --- Audit
+  subgraph Server["src/server/ (Hono Edge API on Cloudflare Workers)"]
+    CoreS["core/ (D1 Client, Hardened Better Auth, Errors, Rate Limit & Security MW)"]
+    ModS["modules/calendar/ (routes -> service -> repo & policy)"]
+    CoreS --> ModS
   end
 
-  Client -- "Hono RPC (Same-Origin HTTPS + Idempotency-Key)" --> Sec
-  ModCal -- "Atomic db.batch()" --> D1
-  Auth -- "Drizzle SQLite Adapter" --> D1
+  Client -- "Runtime Shared Contracts" --> Shared
+  Server -- "Runtime Shared Contracts" --> Shared
+  Client -. "import type AppType ONLY (Erased at Compile Time)" .-> Server
 ```
 
-### 3.2 Modular Monolith Governance
+*Strict Boundary Rule*: Cross-boundary client-to-server imports are permitted **only** as `import type { AppType } from '@server/index'`. Any runtime server import into `src/client/` or React/Hono/Drizzle import into `src/shared/` fails CI immediately.
 
-The repository enforces structural isolation mechanically at lint and compile time rather than relying on developer discipline:
+### 2.2 Mechanically Enforced SOLID Matrix
 
-1. **Strict Zone Isolation (`eslint.config.js` + Project References)**:
-   - `src/shared/**` is pure TypeScript (`tsconfig` zero DOM/Worker globals; ESLint blocks `react`, `hono`, `drizzle-orm`, `@client/*`, `@server/*`).
-   - `src/client/**` permits only `import type { AppType } from '@server/index'` (`allowTypeImports: true`) and restricts cross-module imports strictly to `src/client/modules/<mod>/index.ts`.
-   - `src/server/core/**` cannot import from `src/server/modules/**` except the centralized schema barrel `src/server/core/db/schema.ts`.
-2. **Module Registry v2 (`src/client/app/modules.registry.ts`)**:
-   - Every module declares `{ id, name, shortLabel, route, icon, status, badgeCount?, preloadChunk, component }`.
-   - `AppRouter` wraps every lazy module in a dedicated **Module ErrorBoundary** with one-tap recovery (`Reset Module` / `Clear Stale Cache`) so a runtime fault in future `Activities` never crashes `Content Calendar`.
-   - Hovering, focusing, or starting a touch on a `BottomNav` tab triggers `mod.preloadChunk?.()` so chunk download completes before `pointerup`.
+We do not rely on code review willpower to uphold SOLID; boundaries are enforced mechanically by `tsconfig.app.json`, `tsconfig.worker.json`, and ESLint `no-restricted-imports` rules in CI:
 
-### 3.3 Domain Model, Formal State Machine & Mathematical Invariants
+| Principle | Concrete Architectural Mechanism | Violation Caught By |
+| :--- | :--- | :--- |
+| **Single Responsibility (SRP)** | Backend vertical slice strictly separates HTTP (`routes`), orchestration (`service`), authorization (`policy`), and SQL (`repository`). Frontend separates data fetching (`api/`), state/gesture logic (`hooks/`), and pure rendering (`components/`). | PR Review + Unit Test isolation |
+| **Open / Closed (OCP)** | Adding Module 2 (e.g., `activities`, `recruitment`) requires creating a new slice in `server/modules/` and `client/modules/` and appending one declarative descriptor (with `enabled: boolean` dark-launch toggle, `preloadChunk`, and isolated `<ErrorBoundary>`) to `OS_MODULES` in `modules.registry.ts`. Existing modules remain untouched. | Module barrel lint rule (`@client/modules/*/*`) |
+| **Liskov Substitution (LSP)** | `CalendarService` depends exclusively on `ISlotRepository`. Production binds `D1SlotRepository`; unit tests bind `InMemorySlotRepository` with identical uniqueness, OCC `version`, atomic batch, and audit semantics. | **Shared Repository Contract Test Suite** (Section 8) |
+| **Interface Segregation (ISP)** | Read models (`PublicSlotView` stripped of internal notes, creator ID, audit/version metadata) are segregated from privileged reads (`ManagedSlotView`) and write commands (`BookSlotCommand`, `RelocateSlotCommand`, `QueueRelocationCommand`, `AdminOverrideCommand`). | Separate Zod schemas in `src/shared/schemas/` |
+| **Dependency Inversion (DIP)** | High-level domain services never import `drizzle-orm` or `D1Database`. A thin per-request composition factory in `routes` injects concrete `D1SlotRepository` and `CalendarPolicy` into `CalendarService`. | `tsconfig.worker.json` + ESLint import restriction |
+
+---
+
+## 3. Domain Model, Formal State Machine, Schema Evolution & Concurrency
+
+### 3.1 Canonical Database Schema (Cloudflare D1 / SQLite)
+
+All primary keys use lexicographically sortable **UUIDv7** (or ULID) strings for clean B-tree index locality. All timestamps are stored as ISO-8601 UTC strings (`TEXT`), while calendar dates are stored strictly as timezone-free calendar strings (`YYYY-MM-DD`).
+
+```sql
+-- 1. Organization Units (Extensible without code deploys; seeded with NVMSA's 11 units)
+CREATE TABLE org_units (
+  id           TEXT PRIMARY KEY,              -- e.g., 'scoph', 'pnsdd'
+  code         TEXT NOT NULL UNIQUE,          -- e.g., 'SCOPH', 'PNSDD'
+  name         TEXT NOT NULL,
+  kind         TEXT NOT NULL CHECK (kind IN ('COMMITTEE', 'DIVISION', 'BOARD')),
+  accent_token TEXT NOT NULL,                 -- Design system color token key
+  is_active    INTEGER NOT NULL DEFAULT 1,
+  created_at   TEXT NOT NULL
+);
+
+-- 2. Content Calendar Slots (Module 1 Core Table)
+CREATE TABLE post_slots (
+  id                TEXT PRIMARY KEY,
+  post_date         TEXT,                     -- 'YYYY-MM-DD' when BOOKED/PUBLISHED; NULL when PENDING_RELOCATION
+  status            TEXT NOT NULL CHECK (status IN ('BOOKED', 'PENDING_RELOCATION', 'PUBLISHED', 'CANCELLED')),
+  org_unit_id       TEXT NOT NULL REFERENCES org_units(id),
+  content_type      TEXT NOT NULL CHECK (content_type IN ('POST', 'PHOTO', 'REEL', 'COLLAB', 'STORY_CAMPAIGN')),
+  title             TEXT NOT NULL,
+  notes             TEXT,
+  asset_url         TEXT,                     -- Validated https:// Canva / Google Drive link
+  relocation_reason TEXT,                     -- Populated when moved to PENDING_RELOCATION or ADMIN_OVERRIDE
+  previous_date     TEXT,                     -- Last booked date for context in Relocation Queue
+  created_by_id     TEXT NOT NULL,            -- Better Auth user.id
+  created_by_name   TEXT NOT NULL,            -- Denormalized snapshot (survives user deactivation)
+  version           INTEGER NOT NULL DEFAULT 1, -- Optimistic Concurrency Control (OCC)
+  created_at        TEXT NOT NULL,
+  updated_at        TEXT NOT NULL,
+
+  -- Invariant: BOOKED/PUBLISHED MUST have a post_date; PENDING_RELOCATION MUST have NULL post_date
+  CHECK (
+    (status = 'BOOKED' AND post_date IS NOT NULL) OR
+    (status = 'PUBLISHED' AND post_date IS NOT NULL) OR
+    (status = 'PENDING_RELOCATION' AND post_date IS NULL) OR
+    (status = 'CANCELLED')
+  )
+);
+
+-- HARD INVARIANT: At most ONE active BOOKED or PUBLISHED post per calendar day.
+CREATE UNIQUE INDEX uq_active_post_date
+  ON post_slots(post_date)
+  WHERE status IN ('BOOKED', 'PUBLISHED');
+
+-- Fast month range queries, queue retrieval, and creator lookups
+CREATE INDEX idx_post_slots_status_date ON post_slots(status, post_date);
+CREATE INDEX idx_post_slots_creator ON post_slots(created_by_id, status);
+
+-- 3. Idempotency Store (Prevents duplicate mutations on flaky 4G retries)
+CREATE TABLE idempotency_keys (
+  key           TEXT NOT NULL,
+  user_id       TEXT NOT NULL,
+  route         TEXT NOT NULL,
+  request_hash  TEXT NOT NULL,
+  response_code INTEGER NOT NULL,
+  response_body TEXT NOT NULL,
+  created_at    TEXT NOT NULL,
+  expires_at    TEXT NOT NULL,                -- TTL: 24 hours, pruned periodically
+  PRIMARY KEY (key, user_id, route)
+);
+
+CREATE INDEX idx_idempotency_expires ON idempotency_keys(expires_at);
+
+-- 4. Append-Only Audit Log (Accountability for Admin overrides & EB edits)
+CREATE TABLE slot_audit_log (
+  id          TEXT PRIMARY KEY,
+  slot_id     TEXT NOT NULL REFERENCES post_slots(id),
+  actor_id    TEXT NOT NULL,
+  actor_name  TEXT NOT NULL,
+  actor_role  TEXT NOT NULL,
+  action      TEXT NOT NULL,                  -- BOOKED, UPDATED, QUEUED_RELOCATION, RELOCATED, PUBLISHED, CANCELLED, ADMIN_OVERRIDE
+  diff_json   TEXT NOT NULL,                  -- Structured { before, after, reason }
+  created_at  TEXT NOT NULL
+);
+
+CREATE INDEX idx_slot_audit_slot_time ON slot_audit_log(slot_id, created_at DESC);
+```
+
+#### Zero-Downtime Bridge From v1.0 (`0000` / `0001`) to `RFC-001` Schema
+Because v1.0 already deployed `calendar_slots` and `calendar_slot_audit_logs` to D1 (`wrangler.jsonc`), migration `drizzle/0002_rfc001_expand.sql` MUST preserve every existing row rather than dropping tables:
+1. Create `org_units` and seed all 11 existing NVMSA entities (`SCOPH`, `SCORA`, `SCORP`, `SCOME`, `SCOPE`, `SCORE`, `PNSDD`, `PSDD`, `CBDD`, `FSDD`, `EB`).
+2. Create `post_slots`, `idempotency_keys`, and `slot_audit_log`, then backfill from `calendar_slots` (mapping `'booked' -> 'BOOKED'`, `'relocation_queue' -> 'PENDING_RELOCATION'` with `previous_date = post_date` & `post_date = NULL`, `'cancelled' -> 'CANCELLED'`, `'poster' -> 'POST'`, `'carousel' -> 'PHOTO'`, `'reel' -> 'REEL'`, `'story' -> 'STORY_CAMPAIGN'`, `'announcement' -> 'COLLAB'`) and `calendar_slot_audit_logs` within a single migration script.
+3. Retain legacy tables read-only for 48 hours post-cutover (`Expand-and-Contract` Section 9.4) before dropping in a cleanup migration.
+
+### 3.2 Formal Slot State Machine
+
+An **Available / Open** day is an implicit state (no row exists with `status IN ('BOOKED', 'PUBLISHED')` for that `post_date`).
 
 ```mermaid
 stateDiagram-v2
-  [*] --> open: "Calendar Day Unclaimed"
-  open --> booked: "bookSlot() [EB/Admin, date >= todayCairo or Admin]"
-  booked --> booked: "updateSlot() [Creator/Admin, version match]"
-  booked --> relocation_queue: "relocateSlot(targetDate=null) [Frees post_date]"
-  booked --> booked: "relocateSlot(targetDate=D2) [D2 open, version match]"
-  booked --> relocation_queue: "adminOverrideSlot() [Displaces occupant atomically]"
-  relocation_queue --> booked: "relocateSlot(targetDate=D2) [D2 open, version match]"
-  booked --> cancelled: "cancelSlot() [Creator/Admin, version match, frees post_date]"
-  relocation_queue --> cancelled: "cancelSlot() [Creator/Admin, version match]"
-  cancelled --> [*]
+  [*] --> OPEN: "Day Unclaimed (No Active Row)"
+  OPEN --> BOOKED: "Book Slot (EB/Admin, post_date >= today_cairo or Admin)"
+  BOOKED --> BOOKED: "Edit Metadata (Owner/Admin, OCC version + 1)"
+  BOOKED --> PENDING_RELOCATION: "Queue Relocation (post_date = NULL, previous_date saved, frees day)"
+  BOOKED --> PUBLISHED: "Mark Published (Admin/Owner, post_date >= today or past)"
+  BOOKED --> CANCELLED: "Cancel Slot (Owner/Admin, OCC version + 1, frees day)"
+  BOOKED --> PENDING_RELOCATION: "Admin Override (Displaces occupant atomically in same db.batch)"
+  PENDING_RELOCATION --> BOOKED: "Assign Open Date (Owner/Admin, target_date open, OCC version + 1)"
+  PENDING_RELOCATION --> CANCELLED: "Cancel Queued Slot (Owner/Admin, OCC version + 1)"
+  PUBLISHED --> PUBLISHED: "Admin Metadata Correction ONLY (version + 1)"
+  CANCELLED --> [*]
 ```
 
-#### Mathematical Domain Invariants (Enforced at Service + DB Layers)
+#### Transition Guard Invariants
+1. **No Backdating**: Non-admin EB members cannot book or relocate a slot onto a `post_date < today(Africa/Cairo)`.
+2. **Atomic Date Release**: Moving a slot from `BOOKED` to `PENDING_RELOCATION` sets `post_date = NULL` and `previous_date = old_post_date` in a single atomic SQL statement (paired with its `slot_audit_log` row inside `db.batch()`), immediately releasing the day for other EB members.
+3. **Creator Lock**: Only `slot.created_by_id === actor.id` or `actor.role === 'ADMIN'` may transition or mutate a slot.
+4. **Immutable Published History**: Once `PUBLISHED`, only `ADMIN` may correct metadata (`title`, `notes`, `asset_url`); the slot cannot be deleted, queued, or overwritten by new bookings.
+5. **Atomic Admin Override (`ADMIN_OVERRIDE`)**: When an Admin overrides an occupied date, `db.batch()` atomically (a) transitions the displaced slot to `PENDING_RELOCATION` (`post_date = NULL`, `previous_date = target_date`, `relocation_reason = "Displaced by Admin: " + reason`, `version + 1`), (b) appends the displaced slot's `ADMIN_OVERRIDE` audit record, (c) inserts or relocates the incoming slot onto `target_date` as `BOOKED`, and (d) logs the incoming slot's audit entry. Zero posts vanish silently.
 
-| ID | Invariant | Enforcement Mechanism |
-| :--- | :--- | :--- |
-| **I1 (1-Post/Day)** | At most one row with `status = 'booked'` exists for any `post_date`. | SQLite partial unique index `calendar_slots_booked_date_uidx ON calendar_slots(post_date) WHERE status = 'booked'`. |
-| **I2 (Timezone Authority)** | "Today" and "Past Date" are always evaluated in `Africa/Cairo` (UTC+2 / EEST UTC+3). | Server `getTodayCairoDate(clock())` + Client `useCairoClock()` watching midnight boundary; browser local timezone is never consulted for date locks. |
-| **I3 (Strict Monotonic Version)** | Every state mutation increments `version` by exactly `+1` iff `version === expectedVersion`. | `WHERE id = ? AND version = ?` on *all* updates including `cancelSlot()`. Missing/mismatched version fails with `409 CONFLICT` (`STALE_VERSION`). |
-| **I4 (Atomic Audit Parity)** | Every state mutation produces an append-only `calendar_slot_audit_logs` record in the exact same transaction. | Cloudflare D1 `db.batch([updateStmt, insertAuditStmt, insertIdempStmt])` — all succeed or all roll back. |
-| **I5 (Field-Level Confidentiality)** | Unauthenticated callers and `officer` users never receive `creatorId`, `notes`, `relocationReason`, `version`, or `relocationQueue`. | DTO projection `toPublicSlotView()` vs `toManagedSlotView()` in `CalendarService` + role-partitioned client SWR keys. |
-| **I6 (Valid Calendar Dates)** | Both `YYYY-MM-DD` and `YYYY-MM` reject impossible calendar months/days (`2026-00`, `2026-13`, `2026-02-29`). | Strict Zod `.refine()` checks backed by `isValidYearMonth()` and `isValidIsoDate()`. |
-| **I7 (Idempotent Writes)** | Retrying a mutation with the same `Idempotency-Key` + same payload hash within 24h returns the original response without duplicating rows or triggering false 409s. | `idempotency_keys` table committed atomically inside the write batch. |
+### 3.3 Three-Layer Concurrency & Consistency Architecture
 
-### 3.4 Data Layer, D1 Batch Atomicity & Cairo Timezone Authority
+Mobile users on fluctuating cellular networks generate two classic failure modes: concurrent multi-user collisions and single-user duplicate retries. All state mutations write slot state, audit trail, and idempotency record inside a single Cloudflare D1 `db.batch()`:
 
-#### Migration `drizzle/0002_idempotency_and_hardening.sql`
+1. **Layer 1 — Idempotency (`Idempotency-Key` Header)**: Every mutating client request (`POST`, `PATCH`, `DELETE`) generates a UUIDv4 `Idempotency-Key` per user intent. If a 4G connection drops after D1 commits but before the HTTP response reaches the phone, the client retry returns the cached `201`/`200` response from `idempotency_keys` (verified against `request_hash`; differing payload returns `422 IDEMPOTENCY_CONFLICT`) instead of a false `409 Conflict`.
+2. **Layer 2 — Optimistic Concurrency Control (`version`)**: Every `PATCH`, `relocate`, `queue-relocation`, `publish`, and `DELETE` includes `expectedVersion`. SQL executes `UPDATE post_slots SET ..., version = version + 1 WHERE id = ? AND version = ?`. Zero rows affected returns **`412 Precondition Failed`** (`STALE_VERSION`) with current server state, preventing silent lost updates when an Admin and EB member edit or cancel concurrently.
+3. **Layer 3 — Hard Uniqueness (`uq_active_post_date`)**: If EB Member A and EB Member B tap `"Lock This Day"` for `2026-12-03` within **10ms** of each other, SQLite's partial unique index rejects the second write with `SQLITE_CONSTRAINT_UNIQUE`. The repository catches this specific error, maps it to `ConflictError` (`409 Conflict`), and attaches the winning slot's `PublicSlotView` summary (plus next open Cairo date) so the losing client updates its UI immediately without an extra round-trip.
 
-```sql
--- 1. Idempotency store for reliable mobile write retries
-CREATE TABLE IF NOT EXISTS idempotency_keys (
-  key TEXT NOT NULL,
-  actor_id TEXT NOT NULL,
-  route TEXT NOT NULL,
-  request_hash TEXT NOT NULL,
-  response_status INTEGER NOT NULL,
-  response_body TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  expires_at TEXT NOT NULL,
-  PRIMARY KEY (key, actor_id, route)
-);
+### 3.4 Timezone & Calendar Mathematics
 
-CREATE INDEX IF NOT EXISTS idempotency_keys_expires_idx
-  ON idempotency_keys (expires_at);
+- **Rule of Zero Timestamps for Dates**: Never pass `post_date` through `new Date("2026-12-03")` in client local timezone. All calendar grid generation uses integer `(year, month, day)` UTC calendar arithmetic.
+- **Cairo Anchor**: `"Today"` is computed exclusively via `Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' })` (which yields `YYYY-MM-DD`, accurately handling Egypt's EET `UTC+2` / EEST `UTC+3` DST transitions). An EB member traveling abroad or using a misconfigured device clock still sees the exact NVMSA Cairo schedule day.
+- **Midnight & Foreground Sync (`useCairoClock`)**: Client schedules a lightweight timer to `00:00:05 Africa/Cairo` and re-evaluates Cairo `"Today"` on `document.visibilitychange` (`visible`) and `window.focus` so overnight PWA tabs never show yesterday as bookable.
+- **Strict Month/Date Schemas**: `YearMonthSchema` validates both format (`/^\d{4}-\d{2}$/`) and real calendar bounds (`01 <= month <= 12`, `2020 <= year <= 2100`), rejecting `2026-00` and `2026-13` at the Zod edge.
+- **Fixed 42-Cell (6×7) Grid Invariant**: Every month renders **exactly 42 cells** (6 rows × 7 days, including leading/trailing muted adjacent-month cells). Identical vertical grid height across all 12 months eliminates vertical layout jumps (`CLS = 0.00`) when swiping horizontally between a 28-day February and a 31-day month starting on Saturday.
 
--- 2. Structured diff metadata on audit logs (backward-compatible nullable column)
-ALTER TABLE calendar_slot_audit_logs ADD COLUMN changed_fields TEXT;
+---
 
--- 3. Support fast cross-month availability & creator queries
-CREATE INDEX IF NOT EXISTS calendar_slots_creator_status_idx
-  ON calendar_slots (creator_id, status, post_date);
+## 4. API Contract, Security & STRIDE Threat Model
+
+All endpoints are served under `/api/v1/calendar/*` via Hono and exported as `AppType` for end-to-end compile-time type safety via `hc<AppType>` (preserving `/api/health` and Better Auth `/api/auth/*` mounted cleanly).
+
+### 4.1 Endpoint Specification
+
+| Method & Path | Role | Headers | Success | Error Codes |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET /api/v1/calendar/month?ym=YYYY-MM` | Public (`Officer+`) | `If-None-Match` (`ETag`) | `200 OK` / `304 Not Modified` | `400` |
+| `GET /api/v1/calendar/relocations` | Public (`Officer+`) | `If-None-Match` | `200 OK` / `304` | `400` |
+| `GET /api/v1/calendar/availability?from=&to=` | `EB`, `ADMIN` | — | `200 OK` (`bookedDates[]`) | `400`, `401`, `403` |
+| `GET /api/v1/calendar/slots/:id/history` | `EB`, `ADMIN` | — | `200 OK` (`SlotAuditLogEntry[]`) | `401`, `403`, `404` |
+| `POST /api/v1/calendar/slots` | `EB`, `ADMIN` | `Idempotency-Key` | `201 Created` (`{ slot, affectedMonths }`) | `400`, `401`, `403`, `409`, `422`, `429` |
+| `PATCH /api/v1/calendar/slots/:id` | Owner `EB` / `ADMIN` | `Idempotency-Key` | `200 OK` (`{ slot, affectedMonths }`) | `401`, `403`, `404`, `412`, `422` |
+| `POST /api/v1/calendar/slots/:id/queue-relocation` | Owner `EB` / `ADMIN` | `Idempotency-Key` | `200 OK` (`{ slot, affectedMonths }`) | `401`, `403`, `404`, `409`, `412` |
+| `POST /api/v1/calendar/slots/:id/relocate` | Owner `EB` / `ADMIN` | `Idempotency-Key` | `200 OK` (`{ slot, affectedMonths }`) | `401`, `403`, `404`, `409`, `412`, `422` |
+| `POST /api/v1/calendar/slots/:id/publish` | Owner `EB` / `ADMIN` | `Idempotency-Key` | `200 OK` (`{ slot, affectedMonths }`) | `401`, `403`, `404`, `412` |
+| `POST /api/v1/calendar/slots/override` | `ADMIN` | `Idempotency-Key` | `200 OK` / `201 Created` (`{ slot, displacedSlot, affectedMonths }`) | `400`, `401`, `403`, `412`, `422` |
+| `DELETE /api/v1/calendar/slots/:id` | Owner `EB` / `ADMIN` | `Idempotency-Key` | `200 OK` (`Soft Cancel` + `affectedMonths`) | `401`, `403`, `404`, `412` |
+
+### 4.2 Role & Permission Matrix
+
+| Capability | Officer (Unauthenticated) | EB Member (Authenticated) | Super Admin (PNSDD Head / Pres.) |
+| :--- | :---: | :---: | :---: |
+| View Free / Booked / Relocation Queue | Yes | Yes | Yes |
+| See Org Unit, Format, Title, Booked-By Name | Yes | Yes | Yes |
+| See Internal EB Notes / Asset Links / Audit History | **No** (Stripped by `PublicSlotView`) | Yes | Yes |
+| Book an Open Day (`post_date >= today_cairo`) | No | Yes | Yes |
+| Edit / Queue Relocation / Publish / Cancel Own Slot | No | Yes | Yes |
+| Edit / Override Another EB's Slot / Backdate | No | **Hard Blocked (`403`)** | Yes (Atomic `ADMIN_OVERRIDE` logged) |
+| Manage Org Units & Invite / Soft-Deactivate EB Accounts | No | No | Yes |
+
+### 4.3 Security Threat Model (STRIDE)
+
+1. **Spoofing / Public Registration Abuse**: Public self-sign-up is disabled in Better Auth. EB accounts are provisioned exclusively via Admin invite links with single-use expiring tokens, and `user.additionalFields.role` + `entityCode` explicitly configure `input: false` in `auth.ts`. Production startup throws hard if `BETTER_AUTH_URL` is missing or non-HTTPS; `x-dev-role` impersonation remains double-gated (`APP_ENV === 'development' && ALLOW_DEV_IMPERSONATION === 'true'`) and ignored otherwise.
+2. **Tampering / IDOR (Broken Object-Level Auth)**: Authorization is enforced twice—first in `CalendarPolicy.assertCanMutate(actor, slot)` and second via defensive SQL `WHERE` clauses (`AND version = ?`). Attempting to mutate another EB's slot returns `403 Forbidden` with structured error code `SLOT_OWNERSHIP_VIOLATION`.
+3. **CSRF & Session Theft**: Better Auth sessions use `HttpOnly; Secure; SameSite=Lax` cookies; mutating endpoints verify `Origin` matches the canonical app origin (`trustedOrigins`).
+4. **Injection & XSS**: Drizzle parameterized queries eliminate SQL injection. Strict `Content-Security-Policy` headers (`default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'`) + `X-Content-Type-Options: nosniff` + `X-Frame-Options: DENY` forbid inline scripts; `asset_url` is strictly validated by Zod to accept `https://` URLs only (rejecting `javascript:` or `data:` schemes).
+5. **Information Disclosure (Shared Devices)**: Client SWR cache keys are strictly partitioned by auth scope (`nvmsa_os_swr:v2:<scope>:month:<YYYY-MM>`), hydrated with `initialDataUpdatedAt`, and **synchronously purged** on `signOut()`, `signIn()`, and `switchDevPersona()`. Server auth failures in `sessionMiddleware` emit structured `auth_session_error` logs instead of failing silently.
+6. **Denial of Service / Free Tier Exhaustion**: Cloudflare Workers Rate Limiting caps `/api/auth/*` at **`10 req/min/IP`** and calendar mutations at **`30 req/min/user`**. Read routes emit strong `ETag` headers so revalidation returns lightweight `304 Not Modified`.
+
+---
+
+## 5. Human Interface Guidelines, Motion Physics & 16-Item Craft Catalog
+
+This section defines the sensory, physical, and ergonomic standards so NVMSA OS feels indistinguishable from a first-party native iOS/Android utility.
+
+### 5.1 Ergonomics, Layout, BiDi & Contrast
+
+- **Dynamic Viewport & Safe Areas**: Root shell uses `min-height: 100dvh`, `viewport-fit=cover`, and explicit safe-area padding (`env(safe-area-inset-top)`, `env(safe-area-inset-bottom)`) so fixed bottom navigation and sheets never collide with the iPhone Home Indicator or Dynamic Island.
+- **Touch Targets**: Every interactive day cell and action control enforces a minimum hit area of **`44×44 pt`** (Apple HIG) / **`48×48 dp`** (Android Material), even when the visual badge inside the cell is compact.
+- **Visual State Semantics (Color + Shape + Icon — Never Color Alone)**:
+  - **Available / Open Day**: Clean neutral surface, crisp tabular numeral (`font-variant-numeric: tabular-nums`), subtle emerald dot indicator (`≥ 3:1` contrast) in EB Booking Mode and `text-slate-500` (`#64748b`, `4.76:1` contrast — fixing v1.0's unreadable `text-slate-300` `"Open"` label).
+  - **Booked Day (Locked)**: High-contrast crimson/rose or committee-tinted accent fill, crisp `1px` border, compact org-unit pill (e.g., `SCOME`, `SCOPH`), and tiny **lock glyph** (non-owners) or **edit-dot** (owner) so colorblind users distinguish state immediately.
+  - **Published Day**: Solid emerald check glyph beside the committee pill.
+  - **Today Ring**: High-contrast primary accent ring around the day numeral.
+  - **Pending Relocation Badge**: Persistent amber pill in the top header displaying live queue count (`2 Pending`) with subtle breathing pulse only when `count > 0`.
+- **BiDi & Arabic Readiness**: Because NVMSA members mix English committee acronyms with Arabic campaign titles, all user-authored text inputs and display nodes apply `dir="auto"` and `unicode-bidi: plaintext`, with `line-clamp-2`, `min-w-0`, and CSS logical utilities (`ms-`, `pe-`, `text-start`) + Unicode-grapheme-aware **120-character cap** so long Arabic titles never fracture `375px` grid geometry.
+- **Contrast Compliance**: Primary text meets **WCAG AAA (`≥ 7:1`)**; all 11 org-unit badges, status indicators, and muted labels pass **WCAG AA (`≥ 4.5:1` text / `≥ 3:1` UI graphics)** in Light and Dark themes (automated contrast test covering every `org_units` palette token, upgrading `CBDD` text to `text-amber-950` on `bg-amber-100`).
+
+### 5.2 Physics-Based Motion Language
+
+Linear or generic CSS `ease-in-out` curves feel mechanical and web-like. NVMSA OS runs on `motion/react` (`<LazyMotion features={loadDomMax} strict>` loaded asynchronously to protect initial bundle size) using critically damped and underdamped spring physics governed by the damped harmonic oscillator model:
+
+```text
+F = -k * x - c * v        damping ratio (zeta) = c / (2 * sqrt(k * m))
 ```
 
-#### Atomic `db.batch()` Repository Contract & `adminOverrideSlot()`
-`ISlotRepository` evolves from separate `insert`/`update` + `appendAuditLog` calls into atomic composite methods backed by `this.db.batch([...])` in `D1SlotRepository` (and synchronous deep-cloned array snapshots with rollback in `InMemorySlotRepository`):
-- `insertWithAudit(slot, audit, idempotencyRecord?)`
-- `updateWithAudit(id, patch, expectedVersion, audit, idempotencyRecord?)`
-- `overrideBookedDateWithAudit({ displacedSlotId, displacedPatch, displacedAudit, incomingCommand, incomingSlot, incomingAudit, idempotencyRecord? })`
+where `k` is stiffness, `c` is damping, `m` is normalized mass, and `zeta` (`ζ`) determines overshoot vs. crisp settling.
 
-**Admin Override Semantics (`POST /api/calendar/slots/override`)**:
-1. Requires `role === 'admin'`.
-2. Accepts `{ targetDate, reason (min 5 chars), mode: 'create' | 'relocate', slotId?, expectedVersion?, createInput? }`.
-3. Within a **single atomic `db.batch()`**:
-   - Step A: Finds currently booked slot on `targetDate` (if any) and transitions its `status` → `'relocation_queue'`, `relocationReason` → `"Displaced by Admin: ${reason}"`, `version = version + 1`.
-   - Step B: Inserts an `'admin_displaced'` audit log row for the displaced slot.
-   - Step C: Either inserts the new `'booked'` slot or updates the existing `slotId` onto `targetDate` with `status = 'booked'`, plus its `'admin_override_booked'` audit row.
-4. Both the booking committee and the displaced committee's slot remain cleanly tracked with zero lost posts and full audit accountability.
+#### Standardized Motion Tokens (`src/client/core/motion/tokens.ts`)
 
-#### `YearMonthSchema` & `useCairoClock()` Midnight Authority
-- Replace `/^\d{4}-\d{2}$/` in `src/shared/schemas/calendar.schema.ts` with a strict check verifying `month >= 1 && month <= 12` and `year >= 2020 && year <= 2100`.
-- Introduce `useCairoClock()` on the client: computes exact milliseconds until the next `00:00:00 Africa/Cairo` boundary (handling both UTC+2 winter and UTC+3 Egypt DST transitions seamlessly via `Intl.DateTimeFormat`), schedules a timeout to flip `todayCairo`, and re-checks on `document.visibilitychange` (`visible`) and `window.focus` so backgrounded PWAs on iOS immediately re-sync after midnight or across flights.
+| Token | Spring Parameters (`stiffness / damping / mass`) | Damping Ratio (`ζ`) | Approx. Settle | Feel & Use Case |
+| :--- | :--- | :---: | :---: | :--- |
+| `spring.snappy` | `k = 520, c = 36, m = 0.8` | `~0.88` (near-critical) | `~180 ms` | Tactile press feedback, `DayCell` selection, segmented `layoutId` pill, filter chips |
+| `spring.sheet` | `k = 380, c = 34, m = 1.0` | `~0.87` (near-critical) | `~260 ms` | Bottom sheet presentation, detent snapping, `MobileShell` depth scale (`0.985`), drag release |
+| `spring.swipe` | `k = 300, c = 32, m = 1.0` | `~0.92` (critically smooth) | `~300 ms` | Horizontal 42-cell month carousel swipe & momentum settle |
+| `spring.gentle` | `k = 240, c = 28, m = 1.0` | `~0.90` | `~340 ms` | Relocation drawer expand, subtle crossfades, odometer queue counters, route transitions |
+| `spring.bouncy` | `k = 460, c = 22, m = 0.9` | `~0.54` (controlled underdamped) | `~320 ms` | Slot lock-in radial confirmation pop, SVG check draw, Dynamic-Island toast entry |
+| `spring.reject` | Horizontal damped keyframes (`[0, -10, 9, -6, 3, 0]`, `k = 680, c = 18, m = 0.7`) | `~0.41` (underdamped oscillation) | `~280 ms` | `409 Conflict` rollback shake, `412` stale edit warning, invalid action wobble |
 
-### 3.5 Typed API Contracts, Role-Scoped Caching & Offline PWA v2
+#### Hard Rendering Rules (Zero-Jank Guarantee)
+1. **GPU-Composited Properties Only**: Animations may only mutate `transform` (`translate3d`, `scale`, `rotate`), `opacity`, and hardware-accelerated `clip-path`. Animating `height`, `top`, `left`, `margin`, or `width` frame-by-frame is **strictly forbidden** (use FLIP `layout` transforms only for container disclosures). Zero React `setState()` inside `onPointerMove` / `useDrag` loops—mutate `MotionValue` instances directly so JavaScript frame time stays `< 2.5ms`.
+2. **Interruptibility**: Every gesture-driven animation (`BottomSheet`, `MonthPager`, `PullToRefresh`) tracks pointer velocity (`vx`, `vy`) and passes it directly into the spring integrator. Grabbing a dismissing sheet mid-flight catches it seamlessly without snapping.
+3. **Reduced Motion Compliance**: Globally wrapped in `<MotionConfig reducedMotion="user">` + `@media (prefers-reduced-motion: reduce)`. When active, spatial translations, bounces, horizontal shakes, radial bursts, and haptic `vibrate()` calls degrade automatically to crisp **`150 ms` opacity crossfades** while preserving full visual state clarity.
 
-#### API Endpoint Matrix (Hono RPC `hc<AppType>`)
+### 5.3 Complete 16-Item Interaction & Animation Choreography Catalog
 
-| Method & Path | Min Role | Headers | Request / Query | Success & Conflict Semantics |
+| # | User Journey / Feature | Gesture / Trigger | Visual & Motion Choreography | Haptic / Sensory Feedback |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | **Cold / Warm PWA Launch** | Tap Home Screen icon | App shell renders immediately from SW cache; current month hydrates synchronously from role-scoped `localStorage` SWR snapshot (`0 ms` perceived blank screen). Background fetch reconciles diff with a quiet `150 ms` crossfade—zero full-page spinners. | None (silent clarity) |
+| **2** | **Month Navigation & Prefetch** | Horizontal finger swipe across 42-cell grid or header chevrons | 1:1 finger tracking (`translateX`) with `0.25` rubber-band resistance at bounds. Release past `350 px/s` or `30%` grid width commits via `spring.swipe` while month heading cross-slides vertically (`±14px`). Adjacent months (`M-1`, `M+1`) prefetch on idle for zero-wait swipes. | Light tick on month snap (`vibrate(8)`) |
+| **3** | **Day Cell Tap & Shell Depth** | Tap any day cell (incl. overflow adjacent days) | Press scales cell to `0.95` (`spring.snappy`). On release, selected cell anchors `layoutId="selected-day-ring"`, `BottomSheet` rises via `spring.sheet`, and `MobileShell` recedes smoothly (`rgba(0,0,0,0.32)` scrim, `scale(0.985)`, top radius morph `16px`). Tapping overflow cell routes mutation & auto-pans to that cell's month. | Light tap (`vibrate(6)`) |
+| **4** | **Optimistic Slot Lock Celebration** | EB taps `"Lock This Day"` | Submit button morphs into compact check glyph; sheet dismisses smoothly; target day cell executes white-to-committee radial fill morph, lock-badge scale-in (`0.6 -> 1.0`, `spring.bouncy`), and 6 subtle GPU committee-tinted SVG radial sparks (`360ms`). | Success double-pulse (`vibrate([10, 30, 12])`) |
+| **5** | **409 Conflict Rollback** | Simultaneous booking rejected by D1 | Target cell executes `spring.reject` horizontal micro-shake, smoothly reconciles to the winning EB's slot details (returned directly in 409 body), drops a top pill toast (`"Just claimed by [EB Name] for [Unit]"`), and offers a one-tap `"Jump to next open day"` chip. | Error pattern (`vibrate([25, 40, 25])`) |
+| **6** | **Non-Owner Locked Inspection** | EB Member B taps EB Member A's locked day | Opens read-only Inspection Sheet clearly displaying `"Locked by [EB Member A]"` with one-tap **`"Copy Slot Info"`** and **`"Message on WhatsApp"`** helpers instead of dead buttons. Restricted action taps trigger lock-icon `spring.reject` wobble. | Subtle warning recoil |
+| **7** | **Two-Step Relocation Placement Mode** | Owner taps `"Move to Relocation Queue"` -> later taps `"Assign New Day"` | **Step 1**: Cell clears to open while header Pending badge pops (`1.0 -> 1.18 -> 1.0` + odometer digit roll). **Step 2**: Tapping `"Assign New Day"` activates **Relocation Placement Mode**—a sticky top banner pins (`"Tap any open day for [SCOME Reel]"`), booked days dim to `opacity: 0.38`, open days gently pulse; tapping any open day across any swiped month locks it in one tap! | Tactile confirmation on release and placement |
+| **8** | **Two-Detent Bottom Sheet Drag** | Vertical drag on sheet handle / header | Supports **compact** (inspect) and **expanded** (form/history) detents. Dragging past top detent applies logarithmic rubber-band stretch; scroll-vs-drag arbitrator allows internal scroll when `scrollTop > 0` and dismisses on downward flick (`velocity > 450 px/s` or `> 30%` height). | Snap tick on detent cross |
+| **9** | **Grid ↔ Agenda Morph** | Tap `Grid` / `Agenda` segmented toggle | Segmented thumb glides across track via `layoutId="calendar-view-pill"` (`spring.snappy`). `AnimatePresence` cross-translates Grid (`scale 0.97`) and Agenda rows (staggered `20ms` capped at 8 visible rows). | Light selection click |
+| **10** | **Fluid Org-Unit Filter Ribbon** | Tap `All` or any of the 11 NVMSA entities | Active pill glides across chips via `layoutId="entity-filter-pill"` tinted to unit accent color, auto-centering scrolled chip with CSS edge fade masks; non-matching calendar cells softly dim (`opacity: 0.28, saturate: 0.4`) preserving busy-month context. | Subtle tactile snap |
+| **11** | **Inline Confirm & Relocate Disclosures** | Tap `"Cancel Slot"` or `"Move to Queue"` inside sheet | Action bar morphs smoothly via `AnimatePresence mode="wait"` + FLIP `layout` without jarring sheet height jumps. | None |
+| **12** | **Dynamic-Island Toast Stack** | Success, error, or Undo event | Floating pill springs into view (`spring.bouncy`), stacks up to 3 items (`scale(1 - i*0.04)`), supports horizontal/down swipe dismiss, GPU `scaleX` timer bar pausing on hold, and 4s `"Undo"` action where permitted. | Mirrors tone |
+| **13** | **Bottom Navigation & Route Morph** | Tap `Calendar` / `Activities` / `Members` | Tab icon elevates (`scale(1.08)`) over shared `layoutId="bottom-nav-pill"` capsule; `pointerdown` preloads lazy chunk so `<Outlet />` cross-fades cleanly without loading stalls. | Soft navigation tap |
+| **14** | **Today Sonar & Homing** | Current month view or tap `"Today"` | Current Cairo date displays a subtle concentric sonar ring (`scale 1 -> 1.6`, pausing when backgrounded). Tapping `"Today"` from another month pans horizontally along time axis and briefly flashes a homing ring. | Light tick on return |
+| **15** | **42-Cell Shimmer Skeleton & Standalone Pull-to-Refresh** | Cold empty cache OR downward pull at `scrollY = 0` in PWA | Exact 42-cell skeleton preserves `0.00` CLS (`160ms` fade to hydrated grid). In standalone PWA mode, downward pull draws an elastic circular spinner arc (`pathLength 0 -> 1`) triggering live refresh cleanly. | Refresh snap tick |
+| **16** | **Audit History Timeline Drawer & Warm Empty States** | Tap `"History (N)"` in sheet OR empty queue/agenda | Unfolds vertical audit rail (`booked -> updated -> queued -> relocated / admin_displaced -> published`) with structured `diff_json` pills. Empty states feature calm `< 1.5 KB` inline SVG illustrations + committee-aware guidance. | None |
+
+### 5.4 iOS Safari Keyboard Resilience & Keyboard Grid Accessibility
+
+- **Virtual Keyboard Handling**: `BottomSheet` subscribes to `window.visualViewport` `resize` and `scroll` events, smoothly adjusting `paddingBottom` / vertical translation so sticky primary CTAs (`"Lock Day"`, `"Save Changes"`) stay visible directly above the iOS software keyboard without page jump.
+- **Background Scroll Lock & Focus Trap**: While any sheet is open, `MobileShell` scroll is locked (`overscroll-behavior: contain` + touch-move containment) so iOS Safari never rubber-bands the document behind the sheet; Tab navigation is trapped inside the dialog, `Escape` closes the topmost sheet only, and focus returns cleanly to the exact originating `DayCell`.
+- **Roving Tabindex & Screen Readers**: Inside the 42-cell grid, `ArrowRight`/`ArrowLeft` traverse `±1` day, `ArrowDown`/`ArrowUp` traverse `±7` days, `Home`/`End` jump week bounds, `PageUp`/`PageDown` switch months, and `Enter`/`Space` open the sheet. Every `DayCell` exposes a descriptive `aria-label` (e.g., `"Thursday, December 3, 2026 — Locked by SCOME: OSCE Prep Carousel"` or `"Friday, December 4, 2026 — Open slot"`), backed by polite/assertive `aria-live` status regions.
+
+---
+
+## 6. Offline Resilience, Caching & Quantitative Performance Budgets
+
+### 6.1 Sync & Cache Architecture
+
+- **App Shell (Workbox / Hardened SW v2)**: Precaches static shell via Workbox (`vite-plugin-pwa`, prompt-based non-disruptive update lifecycle) OR hardened `public/sw.js` that caches **only** `GET` same-origin responses with `res.ok === true && res.type === 'basic'`, serves cached `/index.html` fallback for offline `navigate` requests (`/calendar`, `/activities`), and offers a calm `"New version of NVMSA OS ready — Refresh"` toast without forcefully interrupting an active form mid-type.
+- **Data Layer (Role-Scoped SWR + Revalidation Triggers)**:
+  - Keys partitioned strictly by auth scope (`nvmsa_os_swr:v2:<scope>:month:<YYYY-MM>` + `relocations`), stamped with `updatedAt` for TanStack Query `initialDataUpdatedAt`, and purged synchronously on `signIn()` / `signOut()` / `switchDevPersona()`.
+  - Automatic silent revalidation fires on: (a) initial mount, (b) `visibilitychange` when returning from background/WhatsApp, (c) `online` network restoration event, and (d) `BroadcastChannel('nvmsa-calendar')` message when another browser tab mutates data.
+  - Every mutation returns `affectedMonths` so cross-month relocations invalidate both source and destination months + Relocation Queue atomically.
+- **Offline Behavior**: Reading cached months works offline with a quiet amber pill (`"Offline — showing synced schedule from 2m ago"`). Mutations require live server confirmation (never silently queued for hours, which would create misleading false locks); attempting to submit while offline surfaces an actionable retry banner retaining the typed form draft.
+
+### 6.2 Strict Quantitative Performance Budgets
+
+CI fails if production builds exceed size budgets; Playwright performance audits flag regressions against runtime budgets. Budgets are calibrated directly against our measured v1.0 `vite build` output (`100.47 KB` entry JS, `10.71 KB` calendar chunk, `6.51 KB` CSS gzipped):
+
+| Metric | Target Budget (Fail Threshold) | Measurement Condition |
+| :--- | :--- | :--- |
+| **Initial Entry JS Payload (Client)** | **≤ 108 KB** gzipped (Fail `> 115 KB`) | `vite build` rollup bundle analyzer (`dist/client/assets/index-*.js`, v1.0: `100.47 KB`) |
+| **Async Calendar + Lazy `domMax` Chunks** | **≤ 32 KB** gzipped (Fail `> 40 KB`) | `vite build` chunk analyzer (v1.0 `calendar-*.js`: `10.71 KB`) |
+| **Initial CSS Payload** | **≤ 12 KB** gzipped (Fail `> 18 KB`) | Tailwind v4 purged build (`dist/client/assets/index-*.css`, v1.0: `6.51 KB`) |
+| **Cold LCP (Simulated Egyptian 4G)** | **≤ 1.2 s** (Lighthouse Mobile Perf `≥ 96`, Fail `< 92`) | Lighthouse Mobile (`1.6 Mbps`, `150ms` RTT) |
+| **Warm PWA Launch (Cached Shell + SWR)** | **< 150 ms** to interactive calendar | Service Worker warm boot |
+| **Interaction to Next Paint (INP)** | **≤ 80 ms** (p95) | Tap day cell -> sheet first frame |
+| **Cumulative Layout Shift (CLS)** | **0.00** (Fail `> 0.02`) | Fixed 42-cell grid, reserved header slots |
+| **Animation Frame Time** | **≤ 16.67 ms** (60Hz) / **≤ 8.33 ms** (120Hz ProMotion) | Zero long tasks `> 50ms` during drag/morph gestures |
+| **API Latency (`GET /month`)** | **≤ 120 ms** (p95 edge response) | Cloudflare Workers + D1 (`≤ 200 ms` write p95) |
+| **Worker CPU Execution Time** | **< 10 ms** (p99) | Safely below Cloudflare Workers limits |
+
+---
+
+## 7. Principal QA War Room: 25-Scenario FMEA & Adversarial Edge-Case Matrix
+
+Every row below maps a real production failure mode directly to an automated test ID across our 4-layer pyramid:
+
+| ID | Edge Case / Failure Mode | Severity | Engineering Mitigation | Verification Test |
 | :--- | :--- | :--- | :--- | :--- |
-| `GET /api/calendar/slots` | Public | `If-None-Match` (opt) | `?month=YYYY-MM` | `200` (`PublicSlotView[]` for officer/anon; `ManagedSlotView[]` + `relocationQueue` for EB/Admin). Supports `ETag` + `304`. |
-| `GET /api/calendar/availability` | `eb` | — | `?from=YYYY-MM-DD&to=YYYY-MM-DD` | `200` `{ bookedDates: string[] }` lightweight bitmap/list (max 90 days) so `RelocationDrawer` validates cross-month targets live. |
-| `GET /api/calendar/slots/:id/history` | `eb` | — | Path `id` | `200` `{ history: SlotAuditLogEntry[] }` ordered newest-first. Wired into Slot Details Timeline Drawer. |
-| `POST /api/calendar/slots` | `eb` | `Idempotency-Key` | `CreateSlotInput` | `201` `{ slot }` or `409` `{ code: 'DATE_ALREADY_BOOKED', occupyingEntity, nextAvailableDate }`. |
-| `PATCH /api/calendar/slots/:id` | `eb` (own) / `admin` | `Idempotency-Key` | `UpdateSlotInput` (requires `expectedVersion`) | `200` `{ slot }` or `409` `{ code: 'STALE_VERSION', currentVersion }`. |
-| `POST /api/calendar/slots/:id/relocate` | `eb` (own) / `admin` | `Idempotency-Key` | `RelocateSlotInput` (requires `expectedVersion`) | `200` `{ slot }` or `409` (`DATE_ALREADY_BOOKED` or `STALE_VERSION`). |
-| `POST /api/calendar/slots/override` | `admin` | `Idempotency-Key` | `AdminOverrideInput` | `200`/`201` `{ slot, displacedSlot }` via atomic `db.batch()`. |
-| `DELETE /api/calendar/slots/:id` | `eb` (own) / `admin` | `Idempotency-Key` | `?expectedVersion=N` (or JSON body) | `200` `{ slot }` (`status: 'cancelled'`). Fails `409` if stale version. |
-
-#### Role-Scoped SWR Cache & Auth Transition Purge (`src/client/core/storage/cache.ts`)
-To eliminate `P0-SEC-02` permanently:
-1. Partition every cache key by auth scope: `nvmsa_os_swr:v2:<scope>:calendar:<YYYY-MM>`, where `<scope>` is `public` when unauthenticated or `<role>:<userId>` when signed in.
-2. Return `{ data, updatedAt }` from `readSwrCache()` and wire `initialDataUpdatedAt: cached?.updatedAt` into `useQuery`, preventing TanStack Query from treating 11-hour-old `localStorage` data as freshly fetched (respecting `staleTime: 30_000`).
-3. Call `clearAllSwrCache()` synchronously inside `signIn()`, `signOut()`, and `switchDevPersona()` alongside `queryClient.clear()`.
-
-#### Service Worker v2 (`public/sw.js`)
-1. **Strict Cache Eligibility**: Only cache `GET` same-origin responses where `res.ok === true && res.type === 'basic'` and URL is NOT `/api/*`.
-2. **SPA Navigation Fallback**: For `request.mode === 'navigate'`, use NetworkFirst with 3s timeout falling back to cached `/index.html`, ensuring deep links (`/calendar`, `/activities`) render offline instead of showing a browser crash page.
-3. **Safe Update Lifecycle**: Remove blind `self.skipWaiting()` during active sessions. When a new SW reaches `installed` while a controller exists, show a calm floating banner (`"Update ready — Refresh"`); tapping Refresh posts `{ type: 'SKIP_WAITING' }` and cleanly reloads once `controllerchange` fires, preventing mid-session Vite hashed-chunk 404 errors.
-
-### 3.6 Security, Auth & STRIDE Threat Model
-
-| STRIDE Threat | v1.0 Exposure | v2.0 Mitigation (Concrete Implementation) |
-| :--- | :--- | :--- |
-| **Spoofing** | `BETTER_AUTH_URL` falls back to `http://localhost:5173`; dev impersonation headers exist in source. | Throw startup error if `APP_ENV !== 'development'` and `BETTER_AUTH_URL` is missing or not `https://`; retain double-gate `APP_ENV === 'development' && ALLOW_DEV_IMPERSONATION === 'true'`; enforce strict `trustedOrigins`. |
-| **Tampering** | Self-signup could pass `role: "admin"` (`P0-SEC-01`). | Set `input: false` on `user.additionalFields.role` and `entityCode` in `src/server/core/auth/auth.ts`; disable public open registration unless gated by admin invite or verified domain policy; enforce `expectedVersion` on `cancelSlot()`. |
-| **Repudiation** | Slot mutation and audit row are non-atomic (`P0-DATA-01`); audit logs lack field-level diffs. | Commit slot change + structured `changed_fields` audit record inside a single `db.batch()`. |
-| **Information Disclosure** | `signOut()` leaves privileged `ManagedSlotView` data in `localStorage` (`P0-SEC-02`); `session.ts` swallows exceptions silently; missing CSP headers. | Partition SWR cache by `role:userId` + wipe on `signOut()`; emit structured `auth_session_error` logs in `session.ts`; attach strict `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`. |
-| **Denial of Service** | Unthrottled `/api/auth/*` and write endpoints; unbounded `month` range queries. | Configure Cloudflare Workers Rate Limiting binding (`AUTH_LIMITER`: 10 req/min/IP on `/api/auth/*`; `WRITE_LIMITER`: 30 req/min/user on calendar writes); enforce strict `YearMonthSchema` bounds (`2020-01`..`2100-12`). |
-| **Elevation of Privilege** | Client `RoleGate` could be mistaken for security if API misses `requireRole`. | Every write/history route enforces `requireRole('eb')` + resource policy (`defaultCalendarPolicy`); Admin override routes check `requireRole('admin')`. |
+| **QA-01** | **Simultaneous Booking Race**: EB A and EB B book `2026-12-10` at the exact same millisecond. | **Critical** | SQLite partial unique index `uq_active_post_date` rejects loser with `409` + winning slot `PublicSlotView`; loser's UI rolls back with `spring.reject` shake and renders winner. | `INT-RACE-01` (Parallel `Promise.all` against Miniflare D1) |
+| **QA-02** | **Simultaneous Relocation Collision**: Two different pending posts are reassigned to the same open day concurrently. | **Critical** | Single atomic `UPDATE` inside `db.batch()` hits `uq_active_post_date`; loser returns `409` and safely remains in `PENDING_RELOCATION`. | `INT-RACE-02` |
+| **QA-03** | **4G Packet Drop Mid-Commit**: Server commits booking, response drops in transit; EB taps `"Lock"` again. | **High** | Client retries with same `Idempotency-Key`; server replays original `201 Created` from `idempotency_keys` instead of spurious `409` (and rejects mismatched payload with `422`). | `INT-IDEM-01` |
+| **QA-04** | **Egypt DST Transitions**: Spring forward (last Friday of April) & fall back (last Thursday of October) shift Cairo midnight by 1 hour. | **High** | `post_date` is pure `YYYY-MM-DD` string; never parsed via `Date` UTC offsets. Cairo `"Today"` uses `Intl.DateTimeFormat` IANA tz database. | `UNIT-TZ-01` (Mocked clocks across DST boundaries) |
+| **QA-05** | **Midnight Rollover While App Open**: EB keeps PWA open across `23:59 -> 00:01` Cairo time; yesterday still looks bookable. | **Medium** | `useCairoClock` schedules midnight timer + re-evaluates Cairo date on `visibilitychange`. Server rejects backdated writes with `422`. | `UNIT-TZ-02` + `INT-DATE-01` |
+| **QA-06** | **Leap Year & 6-Row Month Geometry**: Feb 29 (`2028` valid, `2026` invalid) and 31-day months starting on Saturday (6 rows). | **Medium** | Gregorian helper tested across `2024`, `2026`, `2028`, `2100`; UI always renders fixed 42 cells (`0.00` CLS); `2026-02-29` returns `400`. | `UNIT-CAL-01` + `E2E-CLS-01` |
+| **QA-07** | **Cross-Month Relocation & Overflow Booking Drift**: Post booked on Nov 29 relocated to Dec 4 (or overflow cell `Dec 1` clicked inside Nov grid). | **High** | Mutation returns `{ affectedMonths: ['2026-11', '2026-12'] }`; client updates/invalidates both SWR caches + Queue atomically; overflow booking targets `postDate.slice(0, 7)`. | `E2E-CACHE-01` |
+| **QA-08** | **Session Expiry Mid-Form**: EB spends 10 minutes writing notes in sheet after cookie expires; taps submit. | **Medium** | On `401`, client saves draft to `sessionStorage`, opens inline re-auth prompt, and restores draft immediately upon sign-in without data loss. | `E2E-AUTH-01` |
+| **QA-09** | **Graduated / Deactivated EB Member**: EB A leaves NVMSA; their future booked slots still need editing or relocation. | **High** | Soft-deactivate user (`isActive = false`, sessions revoked); `created_by_name` snapshot preserves display; `ADMIN` retains audited override/reassignment capability. | `INT-POLICY-02` |
+| **QA-10** | **Stale Backgrounded iOS PWA**: EB resumes PWA suspended since yesterday; tries to book a day taken 3 hours ago. | **High** | `visibilitychange` triggers instant background revalidation; even if tapped within `200ms` before sync finishes, `409` payload reconciles winner cleanly. | `E2E-SYNC-01` |
+| **QA-11** | **iOS 7-Day Safari Cache Eviction & Private Mode**: Inactive officer returns after 14 days OR uses Safari Private Browsing where `localStorage` throws `QuotaExceededError`. | **Low** | Local cache is strictly optional optimization; cold fallback fetches cleanly from Edge with zero uncaught `StorageError` exceptions. | `UNIT-STORAGE-01` |
+| **QA-12** | **Rapid Double-Tap / Fat-Finger Bounce**: EB taps `"Lock Day"` 4 times in `400ms`. | **Medium** | Submit enters synchronous `isSubmitting` ref lock on first pointer event + same `Idempotency-Key` deduplicates at network layer. | `E2E-UX-01` |
+| **QA-13** | **Mixed Arabic/English & Emoji Overflow**: User submits 120-grapheme Arabic + emoji title. | **Medium** | Zod validates grapheme length `<= 120`; CSS applies `dir="auto"`, `truncate`, and `min-w-0` so zero horizontal overflow occurs on `375px` iPhone SE. | `E2E-RTL-01` |
+| **QA-14** | **Lost Update (Admin vs. EB Concurrent Edit / Cancel)**: Admin updates notes (`v1 -> v2`) while EB edits format or clicks `Cancel Slot` with `expectedVersion: 1`. | **Medium** | OCC version mismatch on `PATCH` or `DELETE` returns `412 Precondition Failed`; client surfaces non-destructive diff refresh prompt. | `INT-OCC-01` |
+| **QA-15** | **Self-Relocation Snipe Window**: EB A moves Tuesday to Queue; EB B claims Tuesday 3s later; EB A taps `"Undo"` back to Tuesday. | **Medium** | Undo executes standard `relocate(targetDate)` subject to `uq_active_post_date`; cleanly displays winner instead of corrupting state. | `INT-RACE-03` |
+| **QA-16** | **Self-Signup Privilege Escalation**: Attacker posts `{"role":"ADMIN"}` to `/api/auth/sign-up/email`. | **Critical** | Public signup disabled / invite-only + `input: false` strips privileged fields; unauthorized attempt blocked (`403`/`400`). | `INT-SEC-01` |
+| **QA-17** | **Production Impersonation Header**: Attacker sends `x-dev-role: admin` to production Worker. | **Critical** | `sessionMiddleware` ignores dev headers whenever `APP_ENV !== 'development'` or `ALLOW_DEV_IMPERSONATION !== 'true'`; `/api/me` returns `null`. | `INT-SEC-02` |
+| **QA-18** | **Shared-Device Sign-Out SWR Wipe**: EB signs in, caches December (`notes` + `relocationQueue`), signs out, Officer reloads. | **Critical** | `signOut()` wipes all `nvmsa_os_swr:*` keys synchronously; Officer sees zero EB notes or queue items even offline/before refresh completes. | `E2E-SEC-01` |
+| **QA-19** | **Invalid Month Query & Unsafe Asset URL**: Caller passes `?ym=2026-00`, `?ym=2026-13`, or `asset_url: "javascript:alert(1)"`. | **High** | Strict `YearMonthSchema` & `https://` URL Zod check reject with `400` before touching D1. | `UNIT-ZOD-01` + `INT-SEC-03` |
+| **QA-20** | **Atomic `db.batch()` Audit Rollback**: Inject constraint fault on audit insert inside batch mutation. | **Critical** | Entire D1 batch rolls back atomically: slot stays unchanged, zero partial audit log or idempotency row exists. | `INT-BATCH-01` |
+| **QA-21** | **Atomic `ADMIN_OVERRIDE` & History Audit**: Admin overrides `SCOPH` slot on Dec 15; inspect `GET /slots/:id/history`. | **High** | Displaced `SCOPH` moves atomically to `PENDING_RELOCATION` (`previous_date = 2026-12-15`), `ADMIN` slot books Dec 15, and both audit logs record `ADMIN_OVERRIDE` + `diff_json`. | `INT-ADMIN-01` |
+| **QA-22** | **Sheet Drag vs. Scroll Arbitration & Mid-Flight Swipes**: Scroll inside 25-item Relocation Queue vs pull down at `scrollTop = 0`; reverse month swipe 40% mid-flight. | **Medium** | Internal scroll consumes drag when `scrollTop > 0`; sheet dismisses only from `scrollTop === 0`; interrupted swipe snaps cleanly back using preserved finger velocity. | `E2E-GESTURE-01` |
+| **QA-23** | **iOS Soft Keyboard Avoidance**: Focus `notes` field on `390×844` viewport with `visualViewport` shrunk `300px`. | **High** | Primary CTA `"Lock Day"` translates smoothly above virtual keyboard and remains tappable without clipping. | `E2E-KBD-01` |
+| **QA-24** | **Offline Deep-Route Reload & Safe SW Update**: Reload `/calendar` offline; simulate new SW version while form is open. | **High** | SW serves cached `/index.html` + SWR data offline cleanly; active form stays untouched until user taps `"Refresh"` banner. | `E2E-PWA-01` |
+| **QA-25** | **Reduced Motion, Roving Tabindex, 100-Item Stress & Rate Limits**: `reducedMotion: 'reduce'`, keyboard-only traversal, 100 queue items on 4x throttled CPU, 15 rapid auth hits. | **High** | Zero transforms `> 50ms`, zero `axe-core` AA violations (all 11 org-unit badges pass contrast), 60fps scroll on 100 items, and auth requests 11–15 return `429 RATE_LIMITED`. | `E2E-A11Y-01` + `INT-RL-01` |
 
 ---
 
-## 4. World-Class UX, Fluid Motion & Delight Architecture
+## 8. Verification & 4-Layer Test Strategy
 
-This section addresses the Board's core critique directly: functional correctness is table stakes. What separates an Apple-grade app from a generic CRUD dashboard is **physical honesty, spatial continuity, tactile responsiveness, and calm emotional delight** at 60–120fps.
+Testing follows a fast, deterministic 4-layer pyramid with zero brittle mocking of SQLite internals:
 
-### 4.1 NVMSA Spring Physics Token System
+1. **Layer 1 — Pure Domain & Policy Unit Tests (`Vitest`, `< 2s`)**:
+   - Tests `CalendarService` against `InMemorySlotRepository`, `CalendarPolicy` across all role/ownership permutations, Cairo DST & leap-year date math, contrast token compliance (`≥ 4.5:1`), and Zod boundary validation.
+2. **Layer 2 — Real D1 Edge Integration Tests (`@cloudflare/vitest-pool-workers` + Miniflare)**:
+   - Runs real Drizzle migrations (`drizzle/*.sql`) against an isolated in-memory SQLite D1 instance inside the real Workers runtime (`workerd`).
+   - Executes true concurrency suites (`Promise.all` collisions), `db.batch()` rollback checks, `Idempotency-Key` replays, OCC `412` conflicts, rate limits, and RBAC HTTP assertions.
+3. **Layer 3 — Shared Repository Contract Tests**:
+   - A single parameterized contract test suite executes identically against both `InMemorySlotRepository` and `D1SlotRepository`, mathematically guaranteeing **Liskov Substitution** so unit tests never diverge from production SQLite behavior.
+4. **Layer 4 — Mobile E2E, Craft & Chaos Tests (`Playwright`)**:
+   - Runs on emulated **iPhone 15 Pro (WebKit)**, **iPhone SE 375px (WebKit)**, and **Pixel 8 (Chromium)**.
+   - Verifies offline/online transitions, throttled 3G/4G retries, `prefers-reduced-motion: reduce`, `axe-core` WCAG AA compliance, zero console errors, zero horizontal overflow, `0.00` CLS across month swipes, frame timings, and complete `Officer -> EB -> Admin` journeys.
 
-All motion in NVMSA OS is governed by five named spring tokens exposed via `src/client/core/motion/tokens.ts` and powered by `motion/react` (`LazyMotion` + async `domMax` feature bundle loaded dynamically so the main entry bundle remains `≤ 108 KB` gzipped):
-
-| Token Name | Stiffness | Damping | Mass | Approx. Settle | Target Interactions |
-| :--- | :---: | :---: | :---: | :---: | :--- |
-| `spring.snappy` | `520` | `36` | `0.8` | ~180 ms | Button press release, `DayCell` tap rebound, segmented control pill, BottomNav indicator |
-| `spring.fluid` | `380` | `34` | `1.0` | ~260 ms | `BottomSheet v2` open/snap, `MobileShell` background depth scale (`0.96`), inline disclosure expand |
-| `spring.gentle` | `260` | `30` | `1.0` | ~340 ms | Month pager horizontal slide settle, filter chip bar scroll-to-center, skeleton cross-fade |
-| `spring.bouncy` | `460` | `22` | `0.9` | ~320 ms | Slot lock-in celebration pop, odometer badge count increment, checkmark SVG draw |
-| `spring.recoil` | `680` | `24` | `0.7` | ~280 ms | 409 slot-conflict horizontal shake (`keyframes [0, -10, 9, -6, 4, 0]`), invalid submit shake |
-
-### 4.2 GPU Compositor & 120Hz ProMotion Frame-Budget Contract
-
-1. **Compositor-Only Property Rule**: Continuous animations and gesture frames may ONLY animate `transform` (`translate3d`, `scale`, `rotate`), `opacity`, and `clip-path`. Animating `height`, `width`, `top`, `left`, `margin`, or `box-shadow` directly during 60/120Hz frames is **prohibited** in code review (with FLIP `layout` transforms used cleanly for Grid ↔ Agenda and inline disclosures).
-2. **Zero Layout Thrashing**: Gesture handlers (`onPointerMove` / `useDrag`) read `visualViewport` or container dimensions once on `pointerdown` and mutate `MotionValue` instances directly outside React's render tree — **zero `setState()` calls per animation frame**.
-3. **120Hz Budget**: Each frame in a drag gesture must complete JavaScript work in `< 2.5 ms` so total frame commit stays safely below `8.33 ms` on 120Hz iPhone Pro / Android OLED panels.
-
-### 4.3 Complete 16-Item Fluid Interaction & Animation Choreography Catalog
-
-#### 1. Physics `BottomSheet v2` (`src/client/ui/BottomSheet.tsx`)
-- **Trigger**: Opening `BookingSheet`, `RelocationDrawer`, `SignInSheet`, or `AuditTimelineDrawer`.
-- **Gesture & Physics**:
-  - Mounts inside `AnimatePresence`; enters from `translateY(100%)` on mobile (`< 640px`) using `spring.fluid` (on `sm:+` desktop, scales gracefully from `0.96` + `opacity: 0`).
-  - Header drag bar + sheet header respond to vertical Pointer Events (`drag="y"` with `dragElastic={{ top: 0.08, bottom: 0.4 }}`): dragging upward hits logarithmic rubber-band resistance; dragging downward > `30%` height OR flicking with velocity > `450 px/s` immediately dismisses with inherited velocity (`initialVelocity`).
-  - **Scroll-vs-Drag Arbitrator**: Drag-to-dismiss activates when internal scroll body is at `scrollTop <= 0` and drag delta `dy > 0`, preventing accidental dismissal while scrolling long relocation lists.
-  - **Viewport Depth Stacking**: Parent `MobileShell` subscribes to a shared `sheetProgress` `MotionValue` (`0 → 1`), interpolating `scale(1 → 0.96)`, `borderRadius(0px → 16px)`, and subtle brightness dim (`1 → 0.92`) in lockstep with the user's thumb!
-  - **Keyboard & Focus Hygiene**: Subscribes to `window.visualViewport` resize/scroll events to adjust `paddingBottom` smoothly above iOS/Android virtual keyboards; traps Tab focus inside the dialog; locks background body scroll cleanly (`overscroll-behavior: contain` + scroll-position preservation); restores focus to the exact originating `DayCell` on close.
-
-#### 2. Swipeable Month Pager (`CalendarGrid v2`)
-- **Trigger**: Horizontal swipe left/right anywhere on the 7-column grid, or tapping Prev / Next / Today.
-- **Physics & Choreography**:
-  - Horizontal `drag="x"` tracks the user's finger 1:1 while previewing the adjacent month edge. Release past `25%` width or velocity > `350 px/s` commits the month shift along the temporal direction vector (`dir = +1` slides left, `dir = -1` slides right) using `spring.gentle`.
-  - **Idle Adjacent Prefetch**: As soon as month `M` settles, `useCalendarMonth` triggers low-priority `queryClient.prefetchQuery` for `M - 1` and `M + 1`, making the actual swipe visually instantaneous (`0ms` spinner).
-  - **Month Heading Odometer**: Month title (`November 2026` → `December 2026`) vertically cross-slides (`±14px` + `opacity`) in the direction of time.
-
-#### 3. Spatial Continuity (`DayCell v2`)
-- **Trigger**: Pointer down, hover, selection, and sheet dismissal.
-- **Choreography**:
-  - `pointerdown`: Immediate tactile scale down `scale(0.94)` in 1 frame (`transition: transform 80ms ease-out`); released to `1.0` via `spring.snappy`.
-  - **Selected Anchor Ring**: When `BookingSheet` opens for `2026-12-05`, that cell displays a crisp animated teal highlight ring (`layoutId="selected-day-ring"`) that stays anchored while the sheet is open and gracefully fades as focus returns on dismiss.
-  - **Overflow Adjacent Cells**: Cells with `!cell.inCurrentMonth` clearly indicate subtle muted depth; tapping one cleanly routes `BookingSheet` and `useOptimisticBooking` to *that cell's* `YYYY-MM` month (`input.postDate.slice(0, 7)`) and smoothly pans the grid to that month if booked!
-
-#### 4. Grid ↔ Agenda Shared-Layout Morph & Spring Segmented Control
-- **Trigger**: Tapping `Grid` or `Agenda` segmented toggle.
-- **Choreography**:
-  - The segmented control pill uses Framer Motion `layoutId="calendar-view-pill"` (`spring.snappy`) so the white active thumb physically glides across the track rather than flashing on/off.
-  - Switching views triggers directional `AnimatePresence mode="popLayout"` cross-translation (`Grid` fades/scales down softly from `1 → 0.97` while `Agenda` rows stagger in at `20ms` intervals capped at 8 visible rows).
-
-#### 5. Fluid Entity Filter Ribbon (`All` + 11 NVMSA Entities)
-- **Trigger**: Tapping any committee/division filter chip (`SCOPH`, `SCORA`, `SCORP`, `SCOME`, `SCOPE`, `SCORE`, `PNSDD`, `PSDD`, `CBDD`, `FSDD`, `EB`).
-- **Choreography**:
-  - Active background pill slides horizontally across chips via `layoutId="entity-filter-pill"` (`spring.snappy`) tinted in the selected committee's brand color!
-  - Horizontal scroll ribbon features CSS gradient edge fade masks (`mask-image`) and auto-scrolls the tapped chip smoothly toward center (`scrollIntoView({ inline: 'center', behavior: 'smooth' })`).
-  - **Spatial Context Preservation**: On the calendar grid, non-matching booked slots smoothly dim to `opacity: 0.28, saturate(0.4)` (`200ms`) rather than abruptly vanishing, keeping busy days visually honest while highlighting the filtered committee's footprint.
-
-#### 6. Slot Lock-In Celebration Choreography
-- **Trigger**: Successful `bookSlot()` confirmation (`201 Created`).
-- **Choreography**:
-  1. Immediately on submit (`onMutate`), the target `DayCell` renders an optimistic frosted card with a subtle pulsing border.
-  2. When the server confirms `201`: the cell runs a `spring.bouncy` pop (`1.0 → 1.08 → 1.0`), an SVG padlock/checkmark badge draws itself over `240ms`, and **6 lightweight radial SVG particles** tinted in the committee's hex color (`NVMSA_ENTITY_MAP[entityCode].color`) burst outward `18px` and fade (`380ms`, GPU-only).
-  3. On supported Android/mobile browsers, triggers a subtle `navigator.vibrate?.(12)` haptic tick (guarded cleanly behind user gesture and reduced-motion check).
-
-#### 7. Conflict & Error Physics (`409` / Validation Guard)
-- **Trigger**: Attempting to book/relocate onto a date taken concurrently (`409 DATE_ALREADY_BOOKED`) or editing a stale version (`409 STALE_VERSION`).
-- **Choreography**:
-  - Active sheet card triggers `spring.recoil` horizontal damped oscillation (`x: [0, -10, 9, -6, 3, 0]`) + `navigator.vibrate?.([15, 40, 15])`.
-  - Inline banner smoothly expands (`AnimatePresence`) showing *which committee* holds the date plus a **one-tap `"Jump to next open date (Dec 14)"`** smart recovery chip calculated immediately from cached/availability data!
-  - On `STALE_VERSION`, displays a diff comparison hint and `"Reload Latest Version"` button without wiping the user's typed title/notes draft.
-
-#### 8. Relocation Queue Flight & Odometer Counter Badge
-- **Trigger**: Moving a slot to the Relocation Queue, or assigning a queued slot back onto an open calendar date.
-- **Choreography**:
-  - `Queue (N)` button in `CalendarPage` displays an **odometer counter** (`AnimatePresence` vertical digit slide `y: ±12px` with `tabular-nums`) whenever `relocationQueue.length` increments or decrements, accompanied by an amber attention pulse when a slot enters the queue.
-  - Assigning a queued post onto a date closes the drawer, pans the calendar smoothly to the target month if different, and pulses the newly claimed `DayCell`.
-
-#### 9. Smooth Inline Disclosures (`BookingSheet`)
-- **Trigger**: Clicking `"Move to Queue"` or `"Cancel Slot"` inside `BookingSheet`.
-- **Choreography**:
-  - Action buttons morph smoothly via `AnimatePresence mode="wait"` + `motion.div layout` into the confirmation/reason panel rather than abruptly jumping the modal height.
-
-#### 10. Dynamic-Island-Style Stacked Toast System (`src/client/app/providers.tsx`)
-- **Trigger**: Any `pushToast(message, tone, options?)` invocation.
-- **Choreography**:
-  - Top/bottom-floating pill enters with `spring.bouncy` (`y: 20 → 0, scale: 0.92 → 1, opacity: 0 → 1`).
-  - Maximum 3 visible toasts stack with progressive vertical compression (`scale(1 - idx * 0.04)`, `translateY(-idx * 6px)`).
-  - Swipe horizontally/downward to dismiss manually; optional `Undo` action button (e.g., 4-second grace window or instant re-open) and a hairline GPU `scaleX(1 → 0)` countdown bar that pauses on pointer hover/hold.
-  - All timers stored in `useRef` and cleaned up on unmount/dismiss.
-
-#### 11. Bottom Navigation Spring Pill & Cross-Module Route Transitions
-- **Trigger**: Switching tabs (`Calendar` / `Activities` / `Members`).
-- **Choreography**:
-  - Active tab icon elevates with a subtle `spring.snappy` scale (`1.08`) above a shared `layoutId="bottom-nav-pill"` capsule background.
-  - Route `<Outlet />` transitions gently cross-fade/slide (`opacity: 0 → 1, y: 6 → 0` over `180ms`) without janking the persistent `SafeAreaHeader` or `BottomNav`.
-
-#### 12. Today Sonar Beacon & Smooth "Jump to Today" Homing
-- **Trigger**: Viewing the current month or tapping `"Today"` from any past/future month.
-- **Choreography**:
-  - Today's date circle renders a calm concentric sonar ring (`scale(1 → 1.6)`, `opacity(0.35 → 0)` every `4s`, pausing when tab is hidden).
-  - Tapping `"Today"` pans horizontally back to `getCurrentCairoMonth()` and flashes a brief double-pulse homing ring around today's cell.
-
-#### 13. Anatomically Matched Shimmer Skeletons & Optimistic Ghost States
-- **Trigger**: Initial cold network load when no SWR cache exists for a month.
-- **Choreography**:
-  - Renders a 35-cell `CalendarGridSkeleton` matching exact `min-h-[74px] sm:min-h-[88px]` cell geometry (`CLS = 0.00`), swept by a single synchronized GPU `translateX(-100% → 100%)` gradient sheen.
-  - Cross-fades smoothly to hydrated cells (`160ms`).
-
-#### 14. Standalone PWA Elastic Pull-to-Refresh
-- **Trigger**: Pulling down at `scrollY === 0` in standalone iOS/Android PWA mode (`display-mode: standalone`).
-- **Choreography**:
-  - Rubber-band overscroll stretches an Apple-style circular spinner arc (`0% → 100%` `pathLength`) proportional to pull distance (`0–64px`), snapping at threshold to trigger `queryClient.invalidateQueries` with haptic click, without fighting normal page scroll (`overscroll-behavior-y: contain` in browser mode).
-
-#### 15. Interactive Audit History Timeline Drawer
-- **Trigger**: Tapping `"History (N edits)"` inside `BookingSheet` (visible to EB/Admin).
-- **Choreography**:
-  - Fetches `GET /api/calendar/slots/:id/history` and unfolds a vertical timeline rail (`booked` → `updated` → `queued_for_relocation` → `relocated` → `admin_displaced` → `cancelled`) with staggered row reveal (`25ms`), actor role badge, Cairo timestamp, and field diff badges.
-
-#### 16. Warm, Entertaining Empty States & Milestone Micro-Copy
-- **Trigger**: Empty Agenda filter result, empty Relocation Queue, or Planned module placeholder.
-- **Choreography**:
-  - Custom lightweight vector illustrations (inline crisp SVG, `< 1.5 KB` total) with subtle idle float (`y: ±3px`, 3.5s ease-in-out) and human, committee-aware copy (e.g., *"All clear — no posts waiting in the queue."* / *"0 SCOPH posts booked in December — tap any open day on the grid to claim your campaign spot."*), plus a quiet header progress pill showing monthly coverage (`"18 / 30 days claimed"`).
-
-### 4.4 Accessibility (WCAG 2.2 AA), `prefers-reduced-motion` Degradation Matrix & Arabic RTL Readiness
-
-#### Reduced-Motion Policy
-Wrapped globally in `<MotionConfig reducedMotion="user">` at `AppProviders` root plus a CSS `@media (prefers-reduced-motion: reduce)` rule:
-
-| Interaction | Full Motion Experience | Reduced-Motion (`reduce`) Fallback |
-| :--- | :--- | :--- |
-| `BottomSheet v2` | Spring slide-up + shell `scale(0.96)` | Instant `120ms` opacity cross-fade, zero scale/translation |
-| `CalendarGrid` Month Swap | Horizontal directional slide + odometer title | Instant cross-fade (`100ms`), zero horizontal slide |
-| `Grid ↔ Agenda` / Filter Chips | `layoutId` spring morphing | Static highlight border swap, zero flying pill |
-| Lock-In Celebration | `spring.bouncy` pop + radial SVG burst + vibrate | Instant checkmark appear, **no particles**, **no shake**, **no vibrate** |
-| 409 Conflict Feedback | Horizontal `spring.recoil` shake | Crisp high-contrast error border highlight + alert icon |
-| Today Sonar Beacon | Looping radial pulse | Static high-contrast `2px` teal border ring |
-
-#### Keyboard Navigation & Screen Reader Semantics
-1. **Roving Tabindex 7-Column Grid**: Inside `CalendarGrid`, `ArrowRight`/`ArrowLeft` move focus `±1` day, `ArrowDown`/`ArrowUp` move `±7` days, `Home`/`End` jump to start/end of week, `PageUp`/`PageDown` shift months, and `Enter`/`Space` open `BookingSheet` on that cell.
-2. **Semantic `aria-label` on `DayCell`**: Reads full context cleanly — e.g., `"Friday, December 5, 2026 — Booked by SCOPH: World Health Day Awareness Campaign"` or `"Saturday, December 6, 2026 — Open slot"`.
-3. **ARIA Live Regions**: Polite `aria-live="polite"` status announcer declares `"Loaded December 2026, 14 posts booked"` on month change; assertive `aria-live="assertive"` announces 409 conflict alerts.
-
-#### Color Contrast Audit (WCAG 2.2 AA `≥ 4.5:1` Text, `≥ 3:1` UI Indicators)
-- **Verified v1.0 Violations**:
-  - `DayCell.tsx:63` uses `text-slate-300` (`#cbd5e1` on `#ffffff` = **1.54:1** — fails). **Fix**: Upgrade open label to `text-slate-500` (`#64748b` on `#ffffff` = **4.76:1**) or subtle dashed `+` affordance icon at ≥ `3:1`.
-  - `committees.ts` (`SCOPH` `bg-orange-100 text-orange-800`, `SCORA` `bg-red-100 text-red-800`) and `divisions.ts` (`CBDD` `bg-amber-100 text-amber-800` at `10px` font): enforce `>= 4.5:1` foreground/background ratio across all 11 entity tokens via automated contrast unit test (moving `CBDD` text to `text-amber-950` / `bg-amber-100` where `#451a03` on `#fef3c7` gives **> 12:1**).
-
-#### Arabic RTL Readiness
-- Replace positional spacing (`ml-1`, `-mx-2`, `text-left`) with CSS logical utilities (`ms-1`, `text-start`), and flip directional swipe polarity (`rtl ? -delta : delta`) via `document.dir` so enabling `ar-EG` in v2.x works out of the box.
+### QA Release Sign-Off Gate
+A release candidate is **blocked** unless:
+- **100%** of `QA-01` through `QA-25` automated test IDs pass.
+- Zero TypeScript errors across `tsconfig.app.json` and `tsconfig.worker.json`.
+- Zero ESLint boundary violations (`client` never imports runtime `server`; `shared` stays pure TS).
+- Bundle sizes and Lighthouse CI scores stay strictly within Section 6.2 budgets.
 
 ---
 
-## 5. Principal QA Engineer's Verification, Edge-Case & Chaos Specification
+## 9. Solid Branch Builds, 8-Stage CI/CD & Release Engineering
 
-### 5.1 4-Layer Testing Pyramid & Quantitative Coverage Gates
+Student association engineering teams hand off codebases every year. The repository workflow is engineered to be boringly predictable, self-documenting, and impossible to break accidentally.
 
-| Layer | Runner & Environment | Scope & Target Coverage | Mandatory Gate |
-| :--- | :--- | :--- | :--- |
-| **L1: Unit & Domain** | Vitest (`node`) | Shared schemas, Cairo date/DST math, policy rules, spring/contrast invariants. **≥ 95%** coverage on `src/shared/` & `*.policy.ts`. | Blocking in CI |
-| **L2: Real Edge Runtime & D1 SQL** | `@cloudflare/vitest-pool-workers` (Miniflare SQLite D1) | Real SQL migrations (`0000`..`0002`), `db.batch()` atomicity, partial unique index race tests, `Idempotency-Key`, Better Auth `input: false` signup check. **≥ 90%** coverage on `src/server/`. | Blocking in CI |
-| **L3: Component & Accessibility** | Vitest + Testing Library + `vitest-axe` | `BottomSheet` focus trap & Escape, `BookingSheet` role matrix, roving tabindex keyboard nav, zero `axe-core` AA violations. | Blocking in CI |
-| **L4: Mobile E2E, Gestures & Visual** | Playwright (`iPhone 14 Pro` 390×844 + `Pixel 7` + `prefers-reduced-motion`) | Swipe month navigation, drag-to-dismiss sheet, keyboard avoidance, offline PWA reload, visual snapshots, Web Vitals / frame budget check. | Blocking on PRs |
+### 9.1 Trunk-Based Branch Topology & Supply-Chain Governance
 
-### 5.2 The 25-Scenario Adversarial QA Edge-Case Matrix
+```text
+main (Protected — Production Truth; auto-deploys to nvmsa-os prod on merge)
+ ├── feat/calendar/relocation-placement-mode   (Short-lived, <= 2 days)
+ ├── fix/calendar/ios-keyboard-sheet-offset    (Short-lived)
+ ├── chore/db/add-idempotency-ttl-pruner       (Short-lived)
+ └── hotfix/auth/session-cookie-samesite       (Fast-track production patch)
+```
 
-| # | Category | Scenario & Adversarial Steps | Expected System Behavior | Verification Layer |
-| :--- | :--- | :--- | :--- | :--- |
-| **QA-01** | Concurrency | Two EB members fire simultaneous `POST /api/calendar/slots` for `2026-12-15`. | Exactly 1 returns `201 Created`; second hits partial unique index inside `db.batch()` and returns `409 DATE_ALREADY_BOOKED` with zero orphaned audit rows. | L2 (Miniflare) |
-| **QA-02** | Idempotency | Client sends `POST /slots` with `Idempotency-Key: K1`, drops offline before reading response, retries with `K1` 5s later. | Server returns cached `201` response from `idempotency_keys` without duplicate booking or false `409`. | L2 |
-| **QA-03** | Idempotency Mismatch | Caller reuses `Idempotency-Key: K1` with a *different* JSON payload (`title` changed). | Server rejects with `422 IDEMPOTENCY_CONFLICT` (`400`/`422`). | L2 |
-| **QA-04** | Version Race (Cancel) | Admin updates `notes` (`version 1 → 2`) while creator clicks `Cancel Slot` with stale `expectedVersion: 1`. | `DELETE /slots/:id?expectedVersion=1` rejects with `409 STALE_VERSION`; slot remains booked. | L1 + L2 |
-| **QA-05** | Atomic Audit Rollback | Simulate D1 constraint failure on the second statement inside `updateWithAudit` / `overrideBookedDateWithAudit`. | `db.batch()` rolls back completely: original slot stays unchanged, zero partial audit log exists. | L2 |
-| **QA-06** | Self-Signup PrivEsc | Attacker calls `POST /api/auth/sign-up/email` with `{"role":"admin","entityCode":"PNSDD"}`. | Better Auth strips/ignores `role` & `entityCode` (`input: false`); created row has `role: 'officer'`. | L2 |
-| **QA-07** | Prod Impersonation | Attacker sends `x-dev-role: admin` header against production worker (`APP_ENV=production`). | `sessionMiddleware` ignores header completely; `/api/me` returns `null`, `POST /slots` returns `401`. | L2 |
-| **QA-08** | Shared Device Logout | EB Member loads December (`notes` visible), clicks `Sign Out`, then Officer/Anon refreshes page. | `localStorage` SWR keys wiped synchronously on `signOut()`; Officer sees zero EB `notes` and empty `relocationQueue`. | L4 (Playwright) |
-| **QA-09** | Cairo Midnight Rollover | App stays open at `2026-11-25 23:59:55 Africa/Cairo` (`21:59:55 UTC`) while user is in `UTC-5` browser timezone; wait 10s past Cairo midnight. | `useCairoClock` shifts `todayCairo` to `2026-11-26`; `2026-11-25` becomes past-locked for EB immediately. | L1 + L4 (Clock Mock) |
-| **QA-10** | Egypt DST Boundary | Run `shiftYearMonth`, `buildMonthGrid`, and `getTodayCairoDate` across Egypt Spring Forward (last Friday of April) and Fall Back (last Thursday of October). | Zero skipped or duplicated calendar dates (`getMonthDateBounds` uses UTC calendar arithmetic + Cairo formatter). | L1 |
-| **QA-11** | Leap Year Bounds | Navigate to `2028-02` (leap) and `2026-02` (non-leap); submit `2026-02-29` via raw API. | `2028-02` renders 29 days; `2026-02` renders 28 days; `2026-02-29` returns `400 VALIDATION_ERROR`. | L1 + L2 |
-| **QA-12** | Invalid Month Query | Request `GET /api/calendar/slots?month=2026-00` and `?month=2026-13`. | `YearMonthSchema` rejects both cleanly with `400`, never hitting D1. | L1 + L2 |
-| **QA-13** | Overflow Day Booking | View November 2026; tap trailing overflow cell `2026-12-01` and book a post. | Optimistic update & invalidation target `['calendar', 'month', '2026-12']`, and grid switches smoothly to December. | L3 + L4 |
-| **QA-14** | Cross-Month Relocation | Queue a post from Nov 28; open `RelocationDrawer` and pick an already-booked date in *December* while viewing *November*. | Live `GET /api/calendar/availability` flags the December date as occupied inline and disables `Assign Date`. | L4 |
-| **QA-15** | Atomic Admin Override | Admin overrides an occupied date held by `SCOPH` to assign an urgent `EB` announcement. | `SCOPH` post moves atomically to `relocation_queue` with displacement reason + audit trail; `EB` post becomes `booked` on that date. | L1 + L2 |
-| **QA-16** | Audit Log Integrity | Book → Edit → Move to Queue → Admin Override → Re-book slot; inspect `GET /slots/:id/history`. | Returns 5 chronologically ordered audit entries with exact actor names, roles, `previousDate`/`nextDate`, and `changedFields`. | L2 + L4 |
-| **QA-17** | Drag-to-Dismiss Mid-Scroll | Scroll inside `RelocationDrawer` with 25 items, then drag upward vs downward when `scrollTop > 0` vs `scrollTop === 0`. | Internal scroll consumes touch when `scrollTop > 0`; sheet drag dismisses only at `scrollTop === 0` downward pull. | L4 (Touch) |
-| **QA-18** | Gesture Interruption | Begin swiping `CalendarGrid` 40% left, reverse thumb mid-flight and release right. | Sheet/pager snaps cleanly back to original month preserving gesture velocity with zero stuck states. | L4 (Touch) |
-| **QA-19** | iOS Soft Keyboard Avoidance | Focus `Internal Notes` textarea at bottom of `BookingSheet` on `390×844` mobile viewport with `visualViewport` shrunk 300px. | Submit button `"Lock Post Slot"` remains visible above keyboard and tappable without overlapping footer. | L4 |
-| **QA-20** | Offline Deep-Route Reload | Navigate to `/calendar`, switch Playwright context to `offline: true`, execute hard reload (`page.reload()`). | Service Worker serves cached app shell + SWR data with calm `"Offline — showing saved schedule"` indicator; zero browser error page. | L4 |
-| **QA-21** | Chunk-Hash SW Update | Deploy v2 mock asset manifest while v1 client tab is open; simulate SW update arrival. | Old tab continues working uninterrupted on v1 chunks until user taps `"Refresh"` banner, then swaps cleanly. | L4 |
-| **QA-22** | Keyboard & Screen Reader | Navigate entire month grid + open/close `BookingSheet` + filter chips using only `Tab`, `Arrow*`, `Enter`, `Escape`. | Roving tabindex navigates 35/42 days smoothly; Escape closes top sheet only and restores focus to originating `DayCell`; 0 `axe-core` AA errors. | L3 + L4 |
-| **QA-23** | Reduced Motion Audit | Enable `emulateMedia({ reducedMotion: 'reduce' })` and execute book, 409 error, month change, and Grid/Agenda toggle. | Zero transform animations > 50ms, zero shake, zero particles, zero haptic vibrate calls; all state feedback remains clear. | L4 |
-| **QA-24** | 100-Item Queue Stress | Seed 100 items in `relocationQueue` + 31 booked posts in month on throttled 4x CPU mobile emulation. | Initial render < 100ms; opening `RelocationDrawer` maintains 60fps scroll with zero dropped frames > 50ms. | L4 |
-| **QA-25** | Auth Rate Limit & Headers | Burst 15 rapid `POST /api/auth/sign-in/email` requests from single IP; inspect security headers on `/`. | Requests 11–15 return `429 RATE_LIMITED`; `/` and `/api/*` include strict CSP, `X-Frame-Options: DENY`, `nosniff`. | L2 |
+- **No Long-Lived `develop` Branch**: Long-lived integration branches accumulate merge debt and hide integration bugs. `main` is always releasable; incomplete features ship dark behind typed flags in `modules.registry.ts` (`enabled: boolean`).
+- **Branch Protection on `main`**: Direct pushes forbidden; linear history enforced (**Squash & Merge only**); requires 1 approving review + all 8 CI Quality Gates green + branch up-to-date with `main`.
+- **Conventional Commits Scoped by Module**:
+  - `feat(calendar): add one-tap relocation placement mode`
+  - `fix(shell): lock background overscroll behind open bottom sheet`
+  - `perf(calendar): prefetch adjacent months on idle callback`
+  - `refactor(calendar): extract slot ownership guards into CalendarPolicy`
+  - `db(calendar): add partial unique index uq_active_post_date`
+- **Deterministic Supply-Chain Pinning**: Baseline audit hit `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` on 6 newly published lockfile entries (`@cloudflare/vite-plugin@1.70.2`, `hono@4.13.22`, `@types/react@19.3.3`, `@types/estree@1.0.11`, `electron-to-chromium@1.5.494`, `ignore@7.0.17`). Pin `"packageManager": "pnpm@9.15.4"` in `package.json`, unify `minimumReleaseAge: 1440` (24h) in `pnpm-workspace.yaml` across local machines and CI, and enforce `pnpm audit --prod --audit-level=high` in Stage 1.
 
-### 5.3 Performance, Bundle & Lighthouse CI Quality Gates
+### 9.2 Eight-Stage Automated CI Pipeline (`.github/workflows/ci.yml`)
 
-| Gate Check | Fail Threshold | Target |
-| :--- | :--- | :--- |
-| Main entry JS bundle (`dist/client/assets/index-*.js` gzip; v1.0: `100.47 KB`) | `> 115 KB` | `≤ 108 KB` |
-| Async calendar + lazy `domMax` motion chunks (gzip; v1.0 calendar: `10.71 KB`) | `> 40 KB` | `≤ 32 KB` |
-| CSS bundle (`dist/client/assets/index-*.css` gzip; v1.0: `6.51 KB`) | `> 18 KB` | `≤ 12 KB` |
-| Lighthouse Performance (Mobile 4G) | `< 92` | `≥ 96` |
-| Lighthouse Accessibility | `< 98` | `100` |
-| Lighthouse Best Practices & PWA | `< 95` | `100` |
-| Cumulative Layout Shift (CLS) | `> 0.02` | `0.00` |
-
----
-
-## 6. Best-Practice Solid Branch Builds, CI/CD & Release Engineering
-
-### 6.1 Git Branching Topology, Naming & Protection Rules
-
-- **`main` (Protected Production Branch)**:
-  - Direct pushes blocked; linear history enforced (Squash & Merge via PR only).
-  - Requires **1 approving review**, **all CI status checks green** (Lint, Typecheck, Unit, Miniflare D1, Playwright Mobile, Lighthouse/Bundle budget), and **branch up-to-date with `main`**.
-- **Feature & Fix Branch Naming**:
-  - `feat/<module>-<short-kebab>` (e.g., `feat/calendar-physics-sheet`)
-  - `fix/<module>-<short-kebab>` (e.g., `fix/auth-signup-role-lock`)
-  - `ci/<scope>-<short-kebab>` (e.g., `ci/branch-preview-builds`)
-  - `docs/<scope>-<short-kebab>` (e.g., `docs/nvmsa-os-master-spec`)
-  - `test/<scope>-<short-kebab>` (e.g., `test/playwright-mobile-gauntlet`)
-- **Commit Discipline**: Conventional Commits scoped by module (`fix(auth): ...`, `feat(motion): ...`, `perf(pwa): ...`).
-
-### 6.2 Deterministic Supply-Chain Governance
-
-During v1.0 verification (`2026-11-25`), running `pnpm test` under a strict `minimumReleaseAge` policy failed with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` on 6 newly published transitive/direct dependencies (`@cloudflare/vite-plugin@1.70.2`, `hono@4.13.22`, `@types/react@19.3.3`, `@types/estree@1.0.11`, `electron-to-chromium@1.5.494`, `ignore@7.0.17`).
-
-To make branch builds **100% deterministic across every engineer laptop and CI runner**:
-1. Pin `"packageManager": "pnpm@9.15.4"` in `package.json` and enable Corepack in setup docs.
-2. Add explicit `minimumReleaseAge: 1440` (24 hours) + `minimumReleaseAgeExclude` (only when vetted/necessary, otherwise never bump lockfile entries within 24h of npm publish!) in `pnpm-workspace.yaml` so CI enforces the exact same supply-chain rules as local workstations.
-3. Run `pnpm audit --prod --audit-level=high` on every PR and schedule weekly Dependabot batched updates whose release timestamps satisfy the 24h quarantine window.
-
-### 6.3 Ephemeral PR Branch Preview Build Pipeline
-
-Every non-draft Pull Request produces a **real, live Cloudflare Worker preview URL** (`https://pr-<PR_NUMBER>-nvmsa-os.<account>.workers.dev`) tested against an isolated preview D1 database before a human ever merges it.
+Every Pull Request triggers a parallelized CI build targeting **< 4 minutes** total runtime:
 
 ```mermaid
 flowchart TD
-  PR["Pull Request Opened / Synchronized"] --> Gate1["Stage 1: Fast Static Gate (Lint, Typecheck, Lockfile Verify, Audit)"]
-  Gate1 --> Gate2["Stage 2: L1 Unit + L2 Miniflare D1 Integration Tests"]
-  Gate2 --> Gate3["Stage 3: Vite Build + Bundle Budget Check"]
-  Gate3 --> PreviewDB["Apply Migrations to Isolated Preview D1"]
-  PreviewDB --> Upload["wrangler versions upload --preview-alias pr-N"]
-  Upload --> Gate4["Stage 4: Playwright Mobile E2E + Axe + Lighthouse CI against Live Preview URL"]
-  Gate4 --> Comment["Post PR Report (Preview URL, Bundle Delta, Test & Vitals Summary)"]
-  Comment --> Human["ARB / Reviewer Approval"]
-  Human --> Merge["Squash Merge to main"]
+  PR["Pull Request Opened / Synchronized"] --> S1["1. Static Hygiene + 2. Split Typecheck + 8. Migration Safety Lint"]
+  S1 --> S3["3. Domain Unit Suite + 4. Real D1 Miniflare & LSP Contract Suite"]
+  S3 --> S5["5. Vite Build & Gzip Bundle Budget Gate"]
+  S5 --> S7["7. Staging D1 Dry-Run + Ephemeral PR Preview Deploy (wrangler versions upload)"]
+  S7 --> S6["6. Mobile E2E Matrix (WebKit/Chromium) + Axe + Lighthouse CI on Preview URL"]
+  S6 --> Report["Post PR Report (Preview URL, Bundle Delta, Test & Vitals)"]
 ```
 
-#### Target `.github/workflows/ci.yml` Specification (Reference Pipeline)
+| Stage | Command / Tool | Purpose |
+| :--- | :--- | :--- |
+| **1. Static Hygiene & Audit** | `eslint src && pnpm audit --prod` | Code style + SOLID boundary enforcement (`client`/`server`/`shared`) + CVE gate |
+| **2. Split Typecheck** | `tsc -b tsconfig.app.json tsconfig.worker.json --noEmit` | Verifies client, worker, and shared graphs independently |
+| **3. Domain Unit Suite** | `vitest run --project unit` | Fast SRP / Policy / Cairo DST & contrast math verification (`< 2s`) |
+| **4. Real D1 Integration & Contract** | `vitest run --project worker` | Migrations + Miniflare concurrency, OCC `412`, idempotency, and LSP repository contract tests |
+| **5. Production Build & Budget Gate** | `vite build && node scripts/check-bundle-budget.mjs` | Fails PR if Entry JS `> 115 KB`, Async `> 40 KB`, or CSS `> 18 KB` gzipped |
+| **6. Mobile E2E Matrix** | `playwright test` + `@lhci/cli` | iPhone 15 Pro, iPhone SE `375px`, Pixel 8: gestures, `0.00` CLS, offline PWA, reduced-motion, `axe-core` |
+| **7. Ephemeral Preview Deploy** | `wrangler versions upload --preview-alias pr-N` | Publishes isolated PR preview URL (with preview D1) posted directly onto PR for phone QA |
+| **8. Migration Safety Lint** | Custom SQL linter on `drizzle/*.sql` | Blocks destructive `DROP COLUMN` / `DROP TABLE` without explicit override tag |
 
-```yaml
-name: Solid Branch CI & Preview Build
+### 9.3 Zero-Downtime D1 Migrations (Expand-and-Contract Protocol)
 
-on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+Because edge rollouts and cached clients briefly overlap during deployments, schema changes follow strict **Expand-and-Contract**:
+1. **Expand (PR 1)**: Add new nullable columns, tables, or indexes (`drizzle/000X_*.sql`). Old and new Worker versions both run cleanly against the expanded schema.
+2. **Migrate & Switch (PR 2)**: Deploy application code reading/writing the new columns and backfill existing rows.
+3. **Contract (PR 3)**: Once production traffic is **100%** on the new version and verified stable for **48 hours**, remove legacy columns in a dedicated cleanup migration.
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+### 9.4 Production Deployment & Instant Rollback Playbook
 
-jobs:
-  static-and-unit:
-    name: Static, Security & L1/L2 Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 9 }
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm audit --prod --audit-level=high
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test:unit
-      - run: pnpm test:worker # @cloudflare/vitest-pool-workers + Drizzle migrations
-      - run: pnpm build
-      - name: Enforce gzip bundle budgets
-        run: node scripts/check-bundle-budget.mjs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist-bundle-${{ github.sha }}
-          path: dist/
+Merge to `main` triggers `.github/workflows/deploy.yml`:
+1. Exports a pre-migration D1 backup (`wrangler d1 export nvmsa-os-db --remote --output=backup-${GITHUB_SHA}.sql`, retained 30 days).
+2. Runs `wrangler d1 migrations apply nvmsa-os-db --remote` (idempotent, additive).
+3. Uploads and progressively deploys Worker + Static Assets via `wrangler versions upload` / `wrangler versions deploy` (`10% -> 50% -> 100%` canary or atomic deploy).
+4. Executes a post-deploy **Synthetic Smoke Probe** (`GET /api/health` + `GET /api/v1/calendar/month`) verifying HTTP `200` and **sub-150 ms** latency.
 
-  pr-preview-and-e2e:
-    name: Ephemeral Worker Preview + Mobile E2E + Lighthouse
-    if: github.event_name == 'pull_request'
-    needs: static-and-unit
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      deployments: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 9 }
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist-bundle-${{ github.sha }}
-          path: dist/
-      - name: Migrate isolated preview D1
-        run: npx wrangler d1 migrations apply nvmsa-os-db-preview --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Upload Cloudflare Worker PR Preview Version
-        id: preview
-        run: |
-          ALIAS="pr-${{ github.event.pull_request.number }}"
-          OUT=$(npx wrangler versions upload --env preview --preview-alias "$ALIAS" --json)
-          echo "url=$(echo "$OUT" | jq -r '.preview_url')" >> "$GITHUB_OUTPUT"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Run Playwright Mobile & Accessibility Gauntlet
-        run: pnpm exec playwright test --config=playwright.config.ts
-        env:
-          BASE_URL: ${{ steps.preview.outputs.url }}
-      - name: Run Lighthouse CI Budget Check
-        run: pnpm dlx @lhci/cli@0.14.x autorun --collect.url="${{ steps.preview.outputs.url }}"
-```
-
-### 6.4 Expand-and-Contract D1 Migrations, Gradual Production Rollout & `< 60s` Rollback Runbook
-
-1. **Additive / Expand-and-Contract Migrations Only**:
-   - No PR may execute destructive `DROP COLUMN`, `DROP TABLE`, or narrowing `ALTER` statements while the previous Worker version is still serving traffic.
-   - Schema changes ship in two phases: **Phase A (Expand)** adds nullable columns/tables and backfills; **Phase B (Contract)** drops legacy columns only in a subsequent release after 100% of traffic runs on the new Worker code.
-2. **Pre-Migration D1 Export Snapshot**:
-   - Before `deploy.yml` executes `wrangler d1 migrations apply nvmsa-os-db --remote`, it runs `wrangler d1 export nvmsa-os-db --remote --output=backup-${GITHUB_SHA}.sql` and uploads it as an encrypted workflow artifact (`retention-days: 30`) so point-in-time recovery is immediate.
-3. **Progressive Canary Deployment (`wrangler versions deploy`)**:
-   - Upload new production version without immediately cutting 100% traffic (`wrangler versions upload`).
-   - Shift **10% traffic** (`90%` old / `10%` new) for 5 minutes while polling `/api/health` and Worker 5xx telemetry.
-   - If 5xx rate `< 0.1%` and p95 `< 200ms`, promote to **50%**, then **100%**.
-4. **Instant `< 60s` Rollback Runbook**:
-   - Trigger `gh workflow run rollback.yml -f version_id=<previous_good_version_id>` (or `wrangler rollback --yes`), instantly shifting 100% traffic back to the last known healthy Worker version in under 60 seconds because migrations are strictly backward-compatible.
+**Instant Rollback (< 15 seconds)**:
+If the post-deploy smoke fails or an incident surfaces, run `wrangler rollback --yes` to immediately shift **100%** of edge traffic back to the previous immutable Worker version—guaranteed safe because all D1 migrations follow Expand-and-Contract.
 
 ---
 
-## 7. Dependency-Ordered Implementation Roadmap (7 Branches / 7 PRs)
+## 10. Implementation Roadmap, ADRs & Executive Review Sign-Off Checklist
 
-Each PR maps to a single, reviewable branch built and verified through the preview pipeline above:
+### 10.1 Dependency-Ordered 7-Branch / 7-PR Implementation Roadmap
 
-| Sequence | Branch Name | Primary Scope & Deliverables | Exit Gate |
-| :---: | :--- | :--- | :--- |
-| **PR 1** | `fix/security-auth-and-cache-isolation` | Add `input: false` to Better Auth `additionalFields`; fail closed if prod `BETTER_AUTH_URL` missing; partition SWR cache by `role:userId` + wipe on `signOut()`; add `initialDataUpdatedAt`; add CSP/HSTS/rate-limiting middleware; fix `YearMonthSchema` bounds & `useCairoClock()` midnight rollover. | `QA-06`, `QA-07`, `QA-08`, `QA-09`, `QA-10`, `QA-11`, `QA-12`, `QA-25` passing. |
-| **PR 2** | `feat/calendar-atomic-d1-and-idempotency` | Ship `drizzle/0002_idempotency_and_hardening.sql`; convert `D1SlotRepository` & `InMemorySlotRepository` to atomic `db.batch()` (`insertWithAudit`, `updateWithAudit`, `overrideBookedDateWithAudit`); add `expectedVersion` to `cancelSlot()`; implement `Idempotency-Key` middleware; add `GET /availability` & `POST /slots/override`; fix overflow-day booking target month. | `QA-01`..`QA-05`, `QA-13`, `QA-14`, `QA-15` passing in Miniflare D1 worker pool. |
-| **PR 3** | `ci/solid-branch-preview-builds` | Pin `packageManager`; clean lockfile quarantine policy; add `@cloudflare/vitest-pool-workers`; configure Cloudflare PR preview environment & isolated D1 preview DB; wire `.github/workflows/ci.yml` preview deploys, bundle budget script, and canary `deploy.yml` + `rollback.yml`. | First green PR preview URL posted on PR comment with bundle delta. |
-| **PR 4** | `feat/motion-system-and-physics-sheet` | Install `motion` (`LazyMotion` + `domMax`); implement `src/client/core/motion/tokens.ts` springs; rebuild `BottomSheet v2` (velocity drag-to-dismiss, scroll-drag arbitration, `MobileShell` depth scaling `0.96`, `visualViewport` keyboard avoidance, focus trap, focus return); upgrade Dynamic-Island stacked Toast system with undo & swipe dismiss. | `QA-17`, `QA-19`, `< 8.33ms` drag frame commit verified. |
-| **PR 5** | `feat/calendar-fluid-gestures-and-delight` | Upgrade `CalendarGrid v2` (horizontal swipe month pager + adjacent-month prefetch + odometer heading); `DayCell v2` tactile press, sonar today ring, lock-in celebration + SVG particles, 409 recoil shake + next-open-date quick jump; `layoutId` segmented toggle, filter pill & bottom nav pill; Queue odometer badge & Audit History Timeline Drawer. | `QA-16`, `QA-18`, `QA-24`, zero dropped frames > 50ms. |
-| **PR 6** | `feat/pwa-resilience-and-a11y` | Harden `public/sw.js` (safe cache predicate, SPA navigation fallback, non-disruptive update prompt); add standalone elastic pull-to-refresh; implement Grid roving-tabindex keyboard nav, `aria-live` announcements, `MotionConfig reducedMotion="user"`, WCAG AA entity badge contrast fixes, and logical CSS RTL properties. | `QA-20`, `QA-21`, `QA-22`, `QA-23`, Lighthouse Accessibility = 100. |
-| **PR 7** | `test/playwright-mobile-qa-gauntlet` | Codify the full 25-scenario Playwright Mobile (iPhone 14 Pro + Pixel 7) + visual regression + Lighthouse CI suite as a permanent blocking PR gate. | All 25 QA scenarios green; ARB final sign-off for NVMSA OS v2.0. |
+| PR | Branch Name | Scope & Exit Gate |
+| :---: | :--- | :--- |
+| **1** | `fix/auth-and-client-cache-isolation` | Lock Better Auth `input: false` + invite-only provisioning + `BETTER_AUTH_URL` guard; partition SWR cache + wipe on `signOut()`; add `Origin`, CSP, `X-Frame-Options`, `nosniff`, and edge rate limits; fix `YearMonthSchema`, `useCairoClock()`, and `42`-cell `buildMonthGrid`. Exit: `QA-04..06`, `QA-11`, `QA-16..19`, `QA-25` (rate limits). |
+| **2** | `feat/calendar-rfc001-schema-and-concurrency` | Ship `drizzle/0002_rfc001_expand.sql` (`org_units`, `post_slots`, `idempotency_keys`, `slot_audit_log`); switch repository to atomic `db.batch()`; add OCC `412` on all mutations incl. `DELETE`; return winning `PublicSlotView` on `409`; wire `Idempotency-Key`, `ADMIN_OVERRIDE`, `PUBLISHED`, `affectedMonths`, and `/availability`. Exit: `QA-01..03`, `QA-07`, `QA-09`, `QA-14..15`, `QA-20..21`. |
+| **3** | `ci/solid-branch-preview-builds` | Pin `packageManager` + 24h lockfile quarantine alignment; add `@cloudflare/vitest-pool-workers` + Shared Repository Contract Suite; wire all 8 CI stages + ephemeral `wrangler versions upload --preview-alias pr-N` + canary `deploy.yml` & `wrangler rollback`. |
+| **4** | `feat/motion-system-and-physics-sheet` | Add `motion/react` (`<LazyMotion features={loadDomMax} strict>`); define Section 5.2 spring tokens; build 2-detent rubber-band `BottomSheet` with `MobileShell` `0.985` depth scale, `visualViewport` keyboard offset, focus trap, scroll lock, and Dynamic-Island toast stack. Exit: `QA-22..23`. |
+| **5** | `feat/calendar-gestures-and-placement-mode` | Build 1:1 horizontal 42-cell month swipe + `M±1` idle prefetch; DayCell radial lock celebration & `spring.reject` shake + winner jump; Non-owner WhatsApp/Copy inspection sheet; two-step **Relocation Placement Mode**; `layoutId` segmented toggle, filter pill & bottom nav; Audit History drawer. Exit: `QA-10`, `QA-12`, `QA-22`. |
+| **6** | `feat/pwa-resilience-bidi-and-a11y` | Upgrade Service Worker (Workbox / safe cache + offline `/calendar` fallback + non-disruptive update toast) + `BroadcastChannel` sync + `sessionStorage` 401 draft rescue; add `dir="auto"` BiDi, `MotionConfig reducedMotion="user"`, roving tabindex, WCAG AA badge contrast, and standalone pull-to-refresh. Exit: `QA-08`, `QA-13`, `QA-24`, `QA-25`. |
+| **7** | `test/playwright-mobile-qa-gauntlet` | Lock all 25 QA scenarios + visual CLS checks + Lighthouse CI into blocking PR suite (`iPhone 15 Pro`, `iPhone SE 375px`, `Pixel 8`). |
 
----
+### 10.2 Architecture Decision Records (ADRs)
 
-## 8. Architecture Decision Records (ADRs)
+- **ADR-001 (Motion Runtime)**: Adopt `motion/react` (`<LazyMotion features={loadDomMax} strict>`) loaded asynchronously rather than pure CSS or GSAP, enabling velocity-preserving interrupts, scroll-vs-drag arbitration, and `layoutId` shared morphs while keeping initial entry JS `≤ 108 KB` gzipped.
+- **ADR-002 (Concurrency & Storage)**: Retain Cloudflare D1 + SQLite partial unique index `uq_active_post_date` + atomic `db.batch()`. Explicit scale trigger: if expanding multi-university beyond ~50 concurrent write req/s or requiring live multiplayer presence, place a per-org/month **Durable Object** behind `ISlotRepository` without altering service or client layers.
+- **ADR-003 (Topology)**: Maintain Single-Repo Modular Monolith (`hc<AppType>` end-to-end static RPC safety, single atomic Edge deploy, ESLint/TS boundary isolation).
+- **ADR-004 (Offline Hydration)**: Keep synchronous role-partitioned `localStorage` SWR hydration with explicit `signOut()` purge over IndexedDB for sub-16ms initial paint on `< 15 KB` monthly payloads.
+- **ADR-005 (Fixed 42-Cell Grid)**: Enforce 6-row × 7-column rendering for every month to guarantee `0.00` CLS during horizontal month swipes.
 
-### ADR-001: Motion Runtime — `motion/react` (`LazyMotion` + `domMax`) vs. Pure CSS / GSAP
-- **Decision**: Adopt `motion/react` using async `<LazyMotion features={loadDomMax} strict>` with GPU-only spring tokens.
-- **Rationale**: Pure CSS cannot express velocity-preserving drag-to-dismiss gestures, scroll-vs-drag arbitration, or cross-component `layoutId` shared-element morphs (`Grid ↔ Agenda`, filter pills, bottom nav capsule). GSAP carries heavier bundle/licensing overhead and fights React 19 concurrent reconciliation. Async `LazyMotion` keeps the entry JS bundle within budget (`≤ 108 KB` gzipped vs `100.47 KB` v1.0 baseline) and total async `calendar + domMax` chunks `≤ 32 KB` gzipped, while `strict` mode enforces compile-time discipline against accidentally bundling the full motion runtime into the entry chunk.
-- **Reversibility**: Encapsulated inside `src/client/core/motion/` and `src/client/ui/BottomSheet.tsx`; feature modules import primitives, never raw animation internals.
+### 10.3 Executive Review Sign-Off Checklist
 
-### ADR-002: Concurrency Model — Cloudflare D1 `db.batch()` + Partial Unique Index vs. Durable Objects
-- **Decision**: Retain Cloudflare D1 + SQLite partial unique index (`WHERE status = 'booked'`), upgraded with atomic `db.batch()` for multi-statement slot + audit + idempotency commits.
-- **Rationale**: NVMSA's write profile (dozens of student committees booking up to ~31 posts/month) easily stays orders of magnitude below single-region D1 write saturation, while SQLite's partial unique index gives mathematically airtight exclusivity with zero distributed-lock coordination complexity.
-- **Explicit Scale Trigger**: If NVMSA OS expands multi-university (e.g., > 50 concurrent write req/sec or real-time multiplayer presence cursors in v3.0), shard writes per `organizationId:month` via a dedicated Cloudflare **Durable Object** serialized coordinator behind the existing `ISlotRepository` port.
-
-### ADR-003: Application Topology — Single-Repo Modular Monolith vs. Polyrepo Microservices
-- **Decision**: Maintain the single-repo vertical-slice modular monolith enforced by ESLint boundary rules and TypeScript project references.
-- **Rationale**: Zero serialization boundary tax, end-to-end `hc<AppType>` static RPC safety between Worker routes and React 19 hooks, single atomic deployment unit on Cloudflare Workers, and trivial onboarding of `Activities` (v1.x) and `Member Hub` (v2.0) slices via `modules.registry.ts`.
-
-### ADR-004: Offline Hydration — Role-Partitioned `localStorage` SWR Cache + Explicit Purge vs. Unscoped Cache / IndexedDB
-- **Decision**: Keep lightweight synchronous `localStorage` SWR hydration (`readSwrCache`) for zero-latency `< 16ms` initial paint, strictly partitioned by `role:userId` and purged synchronously on every authentication transition (`signIn`, `signOut`, `switchDevPersona`).
-- **Rationale**: Monthly calendar payloads are tiny (`< 15 KB`), where synchronous `localStorage` beats async IndexedDB startup latency and eliminates initial render flicker, while strict key partitioning + auth purge eliminates cross-user leakage on shared devices (`P0-SEC-02`).
+- [ ] **CEO (Product & Craft)**: Physics-based spring catalog, `< 150 ms` warm SWR boot, fixed 42-cell swipeable calendar, two-step Relocation Placement Mode, BiDi Arabic support, and full-screen iOS/Android PWA ergonomics verified.
+- [ ] **CTO (Architecture & Security)**: Compile-time SOLID boundaries, 3-layer concurrency defense (`Idempotency-Key` + OCC `412` + Partial Unique Index `409`), Better Auth invite-only RBAC + `input: false`, atomic `db.batch()`, and zero-cold-start Edge architecture verified.
+- [ ] **Principal QA (Reliability & Release)**: 25-item FMEA Edge-Case Matrix (`QA-01`..`QA-25`) mapped 1:1 to automated Miniflare + LSP Contract + Playwright test IDs, strict bundle/frame budgets, ephemeral PR preview builds, and Expand-and-Contract `< 15 s` rollback protocol verified.
 
 ---
 
-*End of Specification `NVMSA-RFC-2026-001`.*
+*End of Canonical Specification `NVMSA-RFC-001`.*
