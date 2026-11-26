@@ -1,19 +1,25 @@
+export * from './palette';
+export * from './roles';
 export * from './committees';
 export * from './divisions';
-export * from './roles';
 
-import { STANDING_COMMITTEES } from './committees';
+import { STANDING_COMMITTEES, type CanonicalUnitMetadata } from './committees';
 import { SUPPORT_DIVISIONS } from './divisions';
 
-export const NVMSA_ENTITIES = [...STANDING_COMMITTEES, ...SUPPORT_DIVISIONS] as const;
-
-export type NvmsaEntityCode = (typeof NVMSA_ENTITIES)[number]['code'];
-
-export const NVMSA_ENTITY_CODES = NVMSA_ENTITIES.map((entity) => entity.code) as [
-  NvmsaEntityCode,
-  ...NvmsaEntityCode[],
+/**
+ * Fallback/seed catalog matching the 11 canonical org_units in D1.
+ * Authoritative runtime lists always come from D1 `org_units`.
+ */
+export const CANONICAL_ORG_UNITS: readonly CanonicalUnitMetadata[] = [
+  ...STANDING_COMMITTEES,
+  ...SUPPORT_DIVISIONS,
 ];
 
-export const NVMSA_ENTITY_MAP = Object.fromEntries(
-  NVMSA_ENTITIES.map((entity) => [entity.code, entity]),
-) as Record<NvmsaEntityCode, (typeof NVMSA_ENTITIES)[number]>;
+export const CANONICAL_ORG_UNIT_CODES = CANONICAL_ORG_UNITS.map((unit) => unit.code) as [
+  string,
+  ...string[],
+];
+
+export const CANONICAL_ORG_UNIT_MAP: Record<string, CanonicalUnitMetadata> = Object.fromEntries(
+  CANONICAL_ORG_UNITS.map((unit) => [unit.code, unit]),
+);
