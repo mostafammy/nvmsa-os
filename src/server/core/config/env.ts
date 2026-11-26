@@ -1,8 +1,9 @@
-import type { D1Database } from '@cloudflare/workers-types';
+import type { D1Database, Fetcher } from '@cloudflare/workers-types';
 import type { SeatSessionUser } from '@shared/types';
 
 export interface Env {
   DB: D1Database;
+  ASSETS?: Fetcher;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
   GOOGLE_CLIENT_ID: string;

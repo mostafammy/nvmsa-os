@@ -67,7 +67,14 @@ const app = new Hono<AppEnv>()
     const auth = createAuth(c.env);
     return auth.handler(c.req.raw);
   })
-  .route('/api/v1', apiV1);
+  .route('/api/v1', apiV1)
+  .get('*', async (c) => {
+    if (c.env.ASSETS) {
+      const assetRes = await c.env.ASSETS.fetch(c.req.url);
+      return assetRes as unknown as Response;
+    }
+    return c.notFound();
+  });
 
 app.onError(errorHandler);
 
