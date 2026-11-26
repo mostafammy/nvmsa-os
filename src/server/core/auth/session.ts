@@ -1,65 +1,56 @@
 import type { MiddlewareHandler } from 'hono';
-import { NVMSA_ENTITY_CODES, USER_ROLES, type NvmsaEntityCode, type UserRole } from '@shared/constants';
-import type { SessionUser } from '@shared/types';
 import type { AppEnv } from '../config/env';
+import { createDb } from '../db/client';
 import { createAuth } from './auth';
+import { resolveSeatUser } from './seat-resolver';
 
-function parseRole(value: unknown): UserRole {
-  if (typeof value === 'string' && (USER_ROLES as readonly string[]).includes(value)) {
-    return value as UserRole;
-  }
-  return 'officer';
-}
-
-function parseEntityCode(value: unknown): NvmsaEntityCode | null {
-  if (typeof value === 'string' && (NVMSA_ENTITY_CODES as readonly string[]).includes(value)) {
-    return value as NvmsaEntityCode;
-  }
-  return null;
-}
+const SESSION_COOKIE_PATTERN = /(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=/;
 
 export const sessionMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
-  // Strictly gated: requires BOTH local APP_ENV=development AND explicit ALLOW_DEV_IMPERSONATION=true
-  if (c.env.APP_ENV === 'development' && c.env.ALLOW_DEV_IMPERSONATION === 'true') {
-    const devRole = c.req.header('x-dev-role');
-    if (devRole) {
-      const role = parseRole(devRole);
-      const devUserId = c.req.header('x-dev-user-id') || `dev-${role}`;
-      const devUserName =
-        c.req.header('x-dev-user-name') ||
-        (role === 'admin' ? 'NVMSA Admin' : role === 'eb' ? 'EB Member' : 'NVMSA Officer');
-      const devEntity = parseEntityCode(c.req.header('x-dev-entity'));
-
-      c.set('user', {
-        id: devUserId,
-        name: devUserName,
-        email: `${role}@nvmsa.local`,
-        role,
-        entityCode: devEntity,
-      });
-      await next();
-      return;
-    }
+  const cookieHeader = c.req.header('cookie') ?? '';
+  if (!SESSION_COOKIE_PATTERN.test(cookieHeader)) {
+    c.set('user', null);
+    c.set('authOutcome', 'public');
+    await next();
+    return;
   }
 
   try {
     const auth = createAuth(c.env);
     const result = await auth.api.getSession({ headers: c.req.raw.headers });
-    if (result?.user) {
-      const rawUser = result.user as Record<string, unknown>;
-      const sessionUser: SessionUser = {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        role: parseRole(rawUser.role),
-        entityCode: parseEntityCode(rawUser.entityCode),
-      };
-      c.set('user', sessionUser);
-    } else {
+    if (!result?.user) {
       c.set('user', null);
+      c.set('authOutcome', 'public');
+      await next();
+      return;
     }
-  } catch {
+
+    const db = createDb(c.env.DB);
+    const seatUser = await resolveSeatUser(db, c.env, {
+      id: result.user.id,
+      name: result.user.name,
+      email: result.user.email,
+    });
+
+    if (!seatUser) {
+      c.set('user', null);
+      c.set('authOutcome', 'seat_revoked');
+      await next();
+      return;
+    }
+
+    c.set('user', seatUser);
+    c.set('authOutcome', 'authenticated');
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: 'auth_session_error',
+        requestId: c.get('requestId'),
+        message: error instanceof Error ? error.message : 'Unknown session error',
+      }),
+    );
     c.set('user', null);
+    c.set('authOutcome', 'auth_error');
   }
 
   await next();

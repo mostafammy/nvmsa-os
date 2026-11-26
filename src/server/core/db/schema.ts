@@ -6,8 +6,6 @@ export const users = sqliteTable('user', {
   email: text('email').notNull().unique(),
   emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
   image: text('image'),
-  role: text('role').notNull().default('officer'),
-  entityCode: text('entity_code'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
@@ -52,4 +50,14 @@ export const verifications = sqliteTable('verification', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }),
 });
 
-export { calendarSlotAuditLogs, calendarSlots } from '../../modules/calendar/calendar.table';
+export {
+  officeSeats,
+  orgUnits,
+  seatAllowedUnits,
+  seatAuditLogs,
+} from '../../modules/admin/admin.table';
+export {
+  idempotencyKeys,
+  postSlots,
+  slotAuditLogs,
+} from '../../modules/calendar/calendar.table';

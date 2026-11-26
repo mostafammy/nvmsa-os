@@ -1,44 +1,89 @@
 import { describe, expect, it } from 'vitest';
-import type { SessionUser } from '@shared/types';
-import { ConflictError, ForbiddenError, ValidationError } from '../../core/errors/domain-errors';
+import {
+  CANONICAL_ORG_UNITS,
+  getCapabilitiesForTier,
+  MASKED_SUPER_ADMIN_LABEL,
+  MASKED_SUPER_ADMIN_ROLE,
+} from '@shared/constants';
+import type { OrgUnit, SeatSessionUser } from '@shared/types';
+import {
+  ConflictError,
+  ForbiddenError,
+  PreconditionFailedError,
+  UnprocessableEntityError,
+  ValidationError,
+} from '../../core/errors/domain-errors';
 import { defaultCalendarPolicy } from './calendar.policy';
 import { InMemorySlotRepository } from './calendar.repository';
 import { CalendarService } from './calendar.service';
 
-const officerUser: SessionUser = {
-  id: 'u-officer',
-  name: 'Nour Officer',
-  email: 'officer@nvmsa.org',
-  role: 'officer',
-  entityCode: 'SCOPH',
+const SEED_ORG_UNITS: OrgUnit[] = CANONICAL_ORG_UNITS.map((unit) => ({
+  id: unit.code,
+  code: unit.code,
+  name: unit.name,
+  kind: unit.kind,
+  accentToken: unit.accentToken,
+  isActive: true,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+}));
+
+const lpoSeatUser: SeatSessionUser = {
+  id: 'u-lpo-1',
+  name: 'Nour LPO',
+  email: 'lpoo.nvmsa@gmail.com',
+  seatCode: 'LPO',
+  seatTitle: 'Local Public Health Officer',
+  tier: 'officer_sc',
+  allowedOrgUnits: ['SCOPH'],
+  defaultOrgUnitId: 'SCOPH',
+  capabilities: getCapabilitiesForTier('officer_sc'),
 };
 
-const ebAlice: SessionUser = {
-  id: 'u-eb-alice',
-  name: 'Salma (SCOPH)',
-  email: 'salma@nvmsa.org',
-  role: 'eb',
-  entityCode: 'SCOPH',
+const lpoSuccessorUser: SeatSessionUser = {
+  ...lpoSeatUser,
+  id: 'u-lpo-2',
+  name: 'Hana LPO (Handover)',
 };
 
-const ebBob: SessionUser = {
-  id: 'u-eb-bob',
-  name: 'Omar (SCOME)',
-  email: 'omar@nvmsa.org',
-  role: 'eb',
-  entityCode: 'SCOME',
+const leoLoreSeatUser: SeatSessionUser = {
+  id: 'u-leolore',
+  name: 'Youssef Exchange',
+  email: 'leo.lore.nvmsa@gmail.com',
+  seatCode: 'LEO & LORE',
+  seatTitle: 'Local Exchange Officer & Local Officer on Research Exchange',
+  tier: 'officer_sc',
+  allowedOrgUnits: ['SCOPE', 'SCORE'],
+  defaultOrgUnitId: 'SCOPE',
+  capabilities: getCapabilitiesForTier('officer_sc'),
 };
 
-const adminUser: SessionUser = {
-  id: 'u-admin',
-  name: 'Mostafa (PNSDD)',
-  email: 'admin@nvmsa.org',
-  role: 'admin',
-  entityCode: 'PNSDD',
+const pnsddSeatUser: SeatSessionUser = {
+  id: 'u-pnsdd',
+  name: 'Omar PNSDD',
+  email: 'pnsdd.nvmsa@gmail.com',
+  seatCode: 'PNSDD',
+  seatTitle: 'Publication & New Technology Support Division Director',
+  tier: 'officer_sd_ops',
+  allowedOrgUnits: ['PNSDD'],
+  defaultOrgUnitId: 'PNSDD',
+  capabilities: getCapabilitiesForTier('officer_sd_ops'),
+};
+
+const superAdminUser: SeatSessionUser = {
+  id: 'u-superadmin',
+  name: 'Mostafa Yaser',
+  email: 'mostafa.yaser.developer@gmail.com',
+  seatCode: 'SUPER_ADMIN',
+  seatTitle: 'System Administrator',
+  tier: 'super_admin',
+  allowedOrgUnits: [],
+  defaultOrgUnitId: 'EB',
+  capabilities: getCapabilitiesForTier('super_admin'),
 };
 
 function createTestService() {
-  const repo = new InMemorySlotRepository();
+  const repo = new InMemorySlotRepository(SEED_ORG_UNITS);
   const service = new CalendarService(
     repo,
     defaultCalendarPolicy,
@@ -47,240 +92,261 @@ function createTestService() {
   return { repo, service };
 }
 
-describe('CalendarService', () => {
-  it('enforces the 1-post-per-day lock across concurrent or duplicate bookings', async () => {
+describe('CalendarService v1.0', () => {
+  it('enforces unit-scoped booking and allows LEO & LORE to book SCOPE or SCORE', async () => {
     const { service } = createTestService();
-
-    const first = await service.bookSlot(
-      {
-        postDate: '2026-12-01',
-        title: 'World AIDS Day Awareness',
-        entityCode: 'SCORA',
-        format: 'carousel',
-        notes: 'Publish at 7 PM Cairo time',
-      },
-      ebAlice,
-    );
-
-    expect(first.status).toBe('booked');
-    expect(first.postDate).toBe('2026-12-01');
-    expect(first.version).toBe(1);
 
     await expect(
       service.bookSlot(
         {
           postDate: '2026-12-01',
-          title: 'Conflicting SCOME Workshop',
-          entityCode: 'SCOME',
-          format: 'poster',
+          orgUnitId: 'SCOME',
+          contentType: 'POST',
+          title: 'Cross-committee unauthorized book',
         },
-        ebBob,
+        lpoSeatUser,
       ),
-    ).rejects.toThrow(ConflictError);
+    ).rejects.toThrow(ForbiddenError);
+
+    const scophRes = await service.bookSlot(
+      {
+        postDate: '2026-12-01',
+        orgUnitId: 'SCOPH',
+        contentType: 'POST',
+        title: 'Diabetes Awareness Day',
+      },
+      lpoSeatUser,
+    );
+    if ('replayed' in scophRes) throw new Error('Unexpected replay');
+    expect(scophRes.slot.ownerSeatCode).toBe('LPO');
+    expect(scophRes.affectedMonths).toEqual(['2026-12']);
+
+    const scoreRes = await service.bookSlot(
+      {
+        postDate: '2026-12-02',
+        orgUnitId: 'SCORE',
+        contentType: 'REEL',
+        title: 'Research Exchange Call',
+      },
+      leoLoreSeatUser,
+    );
+    if ('replayed' in scoreRes) throw new Error('Unexpected replay');
+    expect(scoreRes.slot.orgUnitId).toBe('SCORE');
   });
 
-  it('blocks Officers from booking and strips managed fields from Officer views (ISP)', async () => {
+  it('inherits edit ownership via owner_seat_code across annual handovers', async () => {
     const { service } = createTestService();
+
+    const created = await service.bookSlot(
+      {
+        postDate: '2026-12-04',
+        orgUnitId: 'SCOPH',
+        contentType: 'PHOTO',
+        title: 'Predecessor Slot',
+      },
+      lpoSeatUser,
+    );
+    if ('replayed' in created) throw new Error('Unexpected replay');
+
+    const edited = await service.updateSlot(
+      created.slot.id,
+      { title: 'Updated By New LPO', expectedVersion: 1 },
+      lpoSuccessorUser,
+    );
+    if ('replayed' in edited) throw new Error('Unexpected replay');
+    expect(edited.slot.title).toBe('Updated By New LPO');
+    expect(edited.slot.version).toBe(2);
+
+    await expect(
+      service.updateSlot(
+        created.slot.id,
+        { title: 'Hijack by LEO', expectedVersion: 2 },
+        leoLoreSeatUser,
+      ),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('returns 409 ConflictError with winning PublicSlotView & nextOpenDate, and 412 on stale OCC', async () => {
+    const { service } = createTestService();
+
+    const first = await service.bookSlot(
+      {
+        postDate: '2026-12-10',
+        orgUnitId: 'SCOPH',
+        contentType: 'POST',
+        title: 'First Poster',
+      },
+      lpoSeatUser,
+    );
+    if ('replayed' in first) throw new Error('Unexpected replay');
+
+    try {
+      await service.bookSlot(
+        {
+          postDate: '2026-12-10',
+          orgUnitId: 'SCORE',
+          contentType: 'POST',
+          title: 'Second Poster',
+        },
+        leoLoreSeatUser,
+      );
+      expect.unreachable('Should have thrown ConflictError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConflictError);
+      const err = error as ConflictError;
+      const details = err.details as { winner: { title: string }; nextOpenDate: string };
+      expect(details.winner.title).toBe('First Poster');
+      expect(details.nextOpenDate).toBe('2026-12-11');
+    }
+
+    await expect(
+      service.updateSlot(first.slot.id, { title: 'V2 Edit', expectedVersion: 1 }, lpoSeatUser),
+    ).resolves.toBeTruthy();
+
+    await expect(
+      service.updateSlot(first.slot.id, { title: 'Stale V1', expectedVersion: 1 }, lpoSeatUser),
+    ).rejects.toThrow(PreconditionFailedError);
+
+    await expect(
+      service.cancelSlot(first.slot.id, { expectedVersion: 1 }, lpoSeatUser),
+    ).rejects.toThrow(PreconditionFailedError);
+  });
+
+  it('supports idempotency replay and rejects mismatched hash with 422', async () => {
+    const { service } = createTestService();
+    const ctx = {
+      requestId: 'req-1',
+      idempotencyKey: 'key-123',
+      routeKey: 'POST /slots',
+    };
+
+    const first = await service.bookSlot(
+      {
+        postDate: '2026-12-14',
+        orgUnitId: 'SCOPH',
+        contentType: 'POST',
+        title: 'Idempotent Campaign',
+      },
+      lpoSeatUser,
+      ctx,
+    );
+    if ('replayed' in first) throw new Error('Should not be replay');
+
+    const replay = await service.bookSlot(
+      {
+        postDate: '2026-12-14',
+        orgUnitId: 'SCOPH',
+        contentType: 'POST',
+        title: 'Idempotent Campaign',
+      },
+      lpoSeatUser,
+      ctx,
+    );
+    expect('replayed' in replay).toBe(true);
 
     await expect(
       service.bookSlot(
         {
-          postDate: '2026-12-02',
-          title: 'Unauthorized Officer Post',
-          entityCode: 'SCOPH',
-          format: 'poster',
+          postDate: '2026-12-14',
+          orgUnitId: 'SCOPH',
+          contentType: 'POST',
+          title: 'Mutated Payload Same Key',
         },
-        officerUser,
+        lpoSeatUser,
+        ctx,
       ),
-    ).rejects.toThrow(ForbiddenError);
-
-    await service.bookSlot(
-      {
-        postDate: '2026-12-02',
-        title: 'Diabetes Screening Recap',
-        entityCode: 'SCOPH',
-        format: 'reel',
-        notes: 'Internal EB note only',
-      },
-      ebAlice,
-    );
-
-    const publicView = await service.listMonth('2026-12', officerUser);
-    expect(publicView.slots).toHaveLength(1);
-    expect('notes' in (publicView.slots[0] ?? {})).toBe(false);
-    expect('creatorId' in (publicView.slots[0] ?? {})).toBe(false);
-    expect(publicView.relocationQueue).toHaveLength(0);
-
-    const ebView = await service.listMonth('2026-12', ebAlice);
-    expect(ebView.slots).toHaveLength(1);
-    expect('notes' in (ebView.slots[0] ?? {})).toBe(true);
+    ).rejects.toThrow(UnprocessableEntityError);
   });
 
-  it('enforces creator-only editing for EB members while allowing Admin overrides', async () => {
-    const { service } = createTestService();
-
-    const slot = await service.bookSlot(
-      {
-        postDate: '2026-12-05',
-        title: 'Initial Title',
-        entityCode: 'SCOPH',
-        format: 'poster',
-      },
-      ebAlice,
-    );
-
-    await expect(
-      service.updateSlot(slot.id, { title: 'Bob Tampering' }, ebBob),
-    ).rejects.toThrow(ForbiddenError);
-
-    const selfUpdated = await service.updateSlot(
-      slot.id,
-      { title: 'Updated by Creator', expectedVersion: 1 },
-      ebAlice,
-    );
-    expect(selfUpdated.title).toBe('Updated by Creator');
-    expect(selfUpdated.version).toBe(2);
-
-    const adminOverride = await service.updateSlot(
-      slot.id,
-      { title: 'Approved by Admin', expectedVersion: 2 },
-      adminUser,
-    );
-    expect(adminOverride.title).toBe('Approved by Admin');
-    expect(adminOverride.version).toBe(3);
-  });
-
-  it('rejects stale concurrent edits via optimistic locking (expectedVersion)', async () => {
-    const { service } = createTestService();
-
-    const slot = await service.bookSlot(
-      {
-        postDate: '2026-12-08',
-        title: 'Original Post',
-        entityCode: 'SCOPH',
-        format: 'poster',
-      },
-      ebAlice,
-    );
-
-    await service.updateSlot(slot.id, { title: 'Admin Edit', expectedVersion: 1 }, adminUser);
-
-    await expect(
-      service.updateSlot(slot.id, { title: 'Stale EB Edit', expectedVersion: 1 }, ebAlice),
-    ).rejects.toThrow(ConflictError);
-  });
-
-  it('blocks EB members from booking past Cairo dates while allowing Admin backfills', async () => {
+  it('requires reason for super_admin mutations and masks super_admin identity from non-super_admin viewers', async () => {
     const { service } = createTestService();
 
     await expect(
       service.bookSlot(
         {
           postDate: '2026-11-20',
-          title: 'Backdated EB Post',
-          entityCode: 'SCOPH',
-          format: 'poster',
+          orgUnitId: 'EB',
+          contentType: 'POST',
+          title: 'Break-glass Backfill',
         },
-        ebAlice,
+        superAdminUser,
       ),
     ).rejects.toThrow(ValidationError);
 
-    const backfilled = await service.bookSlot(
+    const created = await service.bookSlot(
       {
         postDate: '2026-11-20',
-        title: 'Admin Historical Record',
-        entityCode: 'PNSDD',
-        format: 'announcement',
+        orgUnitId: 'EB',
+        contentType: 'POST',
+        title: 'Break-glass Backfill',
+        reason: 'Historical import requested by PRES',
       },
-      adminUser,
+      superAdminUser,
     );
-    expect(backfilled.postDate).toBe('2026-11-20');
+    if ('replayed' in created) throw new Error('Unexpected replay');
+
+    const publicMonth = await service.listMonth('2026-11', null);
+    expect(publicMonth.slots[0]?.creatorName).toBe(MASKED_SUPER_ADMIN_LABEL);
+    expect(publicMonth.slots[0]?.ownerSeatCode).toBe(MASKED_SUPER_ADMIN_ROLE);
+
+    const pnsddHistory = await service.listSlotHistory(created.slot.id, pnsddSeatUser);
+    expect(pnsddHistory[0]?.actorName).toBe(MASKED_SUPER_ADMIN_LABEL);
+    expect(pnsddHistory[0]?.actorId).toBeNull();
+    expect(pnsddHistory[0]?.actorRole).toBe(MASKED_SUPER_ADMIN_ROLE);
+
+    const adminHistory = await service.listSlotHistory(created.slot.id, superAdminUser);
+    expect(adminHistory[0]?.actorName).toBe('Mostafa Yaser');
+    expect(adminHistory[0]?.actorRole).toBe('super_admin');
   });
 
-  it('frees the original date when moved to Relocation Queue and records append-only audit logs', async () => {
-    const { service } = createTestService();
-
-    const original = await service.bookSlot(
-      {
-        postDate: '2026-12-10',
-        title: 'Human Rights Day Campaign',
-        entityCode: 'SCORP',
-        format: 'carousel',
-      },
-      ebAlice,
-    );
-
-    // Move to Relocation Queue
-    const queued = await service.relocateSlot(
-      original.id,
-      { reason: 'Waiting for final designer exports', expectedVersion: 1 },
-      ebAlice,
-    );
-    expect(queued.status).toBe('relocation_queue');
-
-    // Original date is now free for another committee
-    const replacement = await service.bookSlot(
-      {
-        postDate: '2026-12-10',
-        title: 'Urgent General Assembly Reminder',
-        entityCode: 'EB',
-        format: 'announcement',
-      },
-      ebBob,
-    );
-    expect(replacement.postDate).toBe('2026-12-10');
-
-    // Trying to reschedule back onto the occupied date throws ConflictError
-    await expect(
-      service.relocateSlot(
-        original.id,
-        { targetDate: '2026-12-10', reason: 'Attempt to reclaim occupied day' },
-        ebAlice,
-      ),
-    ).rejects.toThrow(ConflictError);
-
-    // Rescheduling onto an open date succeeds
-    const rescheduled = await service.relocateSlot(
-      original.id,
-      { targetDate: '2026-12-12', reason: 'Assets ready for Dec 12', expectedVersion: 2 },
-      ebAlice,
-    );
-    expect(rescheduled.status).toBe('booked');
-    expect(rescheduled.postDate).toBe('2026-12-12');
-
-    const history = await service.listSlotHistory(original.id, adminUser);
-    expect(history.map((entry) => entry.action).sort()).toEqual([
-      'booked',
-      'queued_for_relocation',
-      'relocated',
-    ]);
-  });
-
-  it('frees a date after cancellation', async () => {
+  it('executes queue-relocation, cross-month relocation, and atomic override cleanly', async () => {
     const { service } = createTestService();
 
     const slot = await service.bookSlot(
       {
-        postDate: '2026-12-15',
-        title: 'Tentative Poster',
-        entityCode: 'PSDD',
-        format: 'poster',
+        postDate: '2026-11-29',
+        orgUnitId: 'SCOPH',
+        contentType: 'REEL',
+        title: 'World Antimicrobial Week',
       },
-      ebAlice,
+      lpoSeatUser,
     );
+    if ('replayed' in slot) throw new Error('Unexpected replay');
 
-    const cancelled = await service.cancelSlot(slot.id, ebAlice);
-    expect(cancelled.status).toBe('cancelled');
+    const queued = await service.queueRelocation(
+      slot.slot.id,
+      { expectedVersion: 1, relocationReason: 'Design review pending' },
+      lpoSeatUser,
+    );
+    if ('replayed' in queued) throw new Error('Unexpected replay');
+    expect(queued.slot.status).toBe('PENDING_RELOCATION');
+    expect(queued.slot.postDate).toBeNull();
+    expect(queued.slot.previousDate).toBe('2026-11-29');
 
-    const rebooked = await service.bookSlot(
+    const relocated = await service.relocateSlot(
+      slot.slot.id,
+      { expectedVersion: 2, targetDate: '2026-12-03' },
+      lpoSeatUser,
+    );
+    if ('replayed' in relocated) throw new Error('Unexpected replay');
+    expect(relocated.slot.status).toBe('BOOKED');
+    expect(relocated.slot.postDate).toBe('2026-12-03');
+    expect(relocated.affectedMonths).toEqual(['2026-12']);
+
+    const overridden = await service.overrideSlot(
       {
-        postDate: '2026-12-15',
-        title: 'Confirmed Exchange Call',
-        entityCode: 'SCOPE',
-        format: 'announcement',
+        postDate: '2026-12-03',
+        orgUnitId: 'PNSDD',
+        contentType: 'STORY_CAMPAIGN',
+        title: 'Emergency Assembly Campaign',
+        reason: 'Urgent board announcement takes priority',
+        expectedOccupantVersion: 3,
       },
-      ebBob,
+      pnsddSeatUser,
     );
-    expect(rebooked.entityCode).toBe('SCOPE');
+    if ('replayed' in overridden) throw new Error('Unexpected replay');
+    expect(overridden.slot.orgUnitId).toBe('PNSDD');
+    expect(overridden.displacedSlot?.status).toBe('PENDING_RELOCATION');
+    expect(overridden.displacedSlot?.postDate).toBeNull();
   });
 });

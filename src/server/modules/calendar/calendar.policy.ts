@@ -1,44 +1,44 @@
-import { hasMinimumRole } from '@shared/constants';
-import type { SessionUser } from '@shared/types';
-import type { CalendarSlotRow } from './calendar.table';
+import type { SeatSessionUser } from '@shared/types';
+import type { PostSlotRow } from './calendar.table';
 
 export interface CalendarPolicy {
-  canViewManagedFields(user: SessionUser | null): boolean;
-  canBookSlot(user: SessionUser | null): boolean;
-  canEditSlot(user: SessionUser | null, slot: Pick<CalendarSlotRow, 'creatorId'>): boolean;
-  canRelocateSlot(user: SessionUser | null, slot: Pick<CalendarSlotRow, 'creatorId'>): boolean;
-  canCancelSlot(user: SessionUser | null, slot: Pick<CalendarSlotRow, 'creatorId'>): boolean;
-  canOverrideSlot(user: SessionUser | null): boolean;
+  canViewManagedFields(user: SeatSessionUser | null): boolean;
+  canBookForOrgUnit(user: SeatSessionUser | null, orgUnitId: string): boolean;
+  canMutateSlot(
+    user: SeatSessionUser | null,
+    slot: Pick<PostSlotRow, 'ownerSeatCode'>,
+  ): boolean;
+  canBackfillPastDates(user: SeatSessionUser | null): boolean;
+  canOverrideSlot(user: SeatSessionUser | null): boolean;
+  requiresSuperAdminReason(user: SeatSessionUser | null): boolean;
 }
 
 export const defaultCalendarPolicy: CalendarPolicy = {
   canViewManagedFields(user) {
-    return user !== null && hasMinimumRole(user.role, 'eb');
+    return user !== null;
   },
 
-  canBookSlot(user) {
-    return user !== null && hasMinimumRole(user.role, 'eb');
-  },
-
-  canEditSlot(user, slot) {
+  canBookForOrgUnit(user, orgUnitId) {
     if (!user) return false;
-    if (user.role === 'admin') return true;
-    return user.role === 'eb' && slot.creatorId === user.id;
+    if (user.capabilities.canBookAnyUnit) return true;
+    return user.allowedOrgUnits.includes(orgUnitId);
   },
 
-  canRelocateSlot(user, slot) {
+  canMutateSlot(user, slot) {
     if (!user) return false;
-    if (user.role === 'admin') return true;
-    return user.role === 'eb' && slot.creatorId === user.id;
+    if (user.capabilities.canMutateAnySlot) return true;
+    return slot.ownerSeatCode === user.seatCode;
   },
 
-  canCancelSlot(user, slot) {
-    if (!user) return false;
-    if (user.role === 'admin') return true;
-    return user.role === 'eb' && slot.creatorId === user.id;
+  canBackfillPastDates(user) {
+    return user !== null && user.capabilities.canBackfillPastDates;
   },
 
   canOverrideSlot(user) {
-    return user !== null && user.role === 'admin';
+    return user !== null && user.capabilities.canMutateAnySlot;
+  },
+
+  requiresSuperAdminReason(user) {
+    return user !== null && user.tier === 'super_admin';
   },
 };
