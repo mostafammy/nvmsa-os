@@ -1,4 +1,6 @@
-# NVMSA OS
+# NVMSA OS Blueprint
+
+## System Overview
 
 Modular, mobile-first operating system for **New Valley Medical Students' Association (NVMSA)** — starting with a 1-post-per-day content calendar PWA.
 
@@ -82,4 +84,38 @@ pnpm deploy     # Build SPA + Worker bundle and deploy to Cloudflare
 
 ## Architecture & Engineering Specifications
 
-- **[NVMSA OS v2.0 Master Specification (`NVMSA-RFC-2026-001`)](./docs/specs/NVMSA_OS_MASTER_SPEC.md)** — Authoritative Principal Engineering RFC covering the v1.0 defect & security audit, system architecture, D1 batch atomicity & Cairo timezone invariants, 16-item 60/120Hz fluid motion choreography catalog, 25-scenario adversarial QA edge-case matrix, and Cloudflare Workers ephemeral PR branch preview & canary rollout pipelines.
+- **[NVMSA OS Master Specification (`NVMSA-RFC-001`)](./docs/specs/NVMSA_OS_MASTER_SPEC.md)** — Authoritative Principal Engineering RFC covering the v1.0 defect & security audit, system architecture, D1 batch atomicity & Cairo timezone invariants, 16-item 60/120Hz fluid motion choreography catalog, 25-scenario adversarial QA edge-case matrix, and Cloudflare Workers ephemeral PR branch preview & canary rollout pipelines.
+
+## Local Interface & Invariants
+
+- `[drizzle.config.ts:default]` — Default-exported `defineConfig({ schema: './src/server/core/db/schema.ts', out: './drizzle', dialect: 'sqlite' })` binding Drizzle Kit migrations to the SQLite schema barrel.
+- `[eslint.config.js:default]` — Flat ESLint config enforcing zone isolation across `src/shared/**` (blocks `react`, `react-*`, `hono`, `drizzle-orm`, `@client/*`, `@server/*`), `src/client/**` (allows `@server/*` only with `allowTypeImports: true`, restricts cross-module imports to root `index.ts` barrels via `@client/modules/*/*`), and `src/server/core/**/*.ts` (blocks `@server/modules/*` except `src/server/core/db/schema.ts`).
+- `[vite.config.ts:default]` — Default-exported `defineConfig` wiring `react()`, `tailwindcss()`, and `cloudflare()` plugins plus `@shared`, `@client`, and `@server` path aliases.
+- `[vitest.config.ts:default]` — Default-exported `defineConfig` running `src/**/*.test.ts` in the `node` environment (`globals: false`) with `@shared`, `@client`, and `@server` aliases.
+- **Invariant (`[tsconfig.app.json]`, `[tsconfig.worker.json]`)**: Client builds (`src/client`, `src/shared`) exclude `src/server` and allow `@server/index` only for type imports; Worker builds (`src/server`, `src/shared`) exclude `src/client`.
+- **Side Effects (`Local Configs`)**: Build-time and CLI tooling only (`drizzle-kit` generates SQL into `./drizzle`; Vite emits SSR Worker and client bundles into `./dist`).
+
+## Subdirectories & System Boundaries
+
+- `drizzle`: [./drizzle/README.md](./drizzle/README.md) — SQLite / Cloudflare D1 DDL migrations (`0000_init_calendar.sql`, `0001_audit_and_versioning.sql`) provisioning Better Auth tables, `calendar_slots` (with partial unique index and `version`), and `calendar_slot_audit_logs`.
+- `public`: [./public/README.md](./public/README.md) — Service Worker (`sw.js`) pre-caching `['/', '/manifest.webmanifest']` in Cache Storage `'nvmsa-os-v1'` and serving network-first fallbacks for non-`/api/` `GET` requests.
+- `src`: [./src/README.md](./src/README.md) — Modular monolith TypeScript source tree separating `./src/shared/README.md`, `./src/server/README.md`, and `./src/client/README.md`.
+
+## Global Invariants
+
+- **Single Booked Post Per Cairo Date (`[0000_init_calendar.sql:calendar_slots_booked_date_uidx]`, `[calendar.table.ts:calendarSlots]`)**: Partial unique index on `calendar_slots (post_date) WHERE status = 'booked'` enforces at most one booked slot per calendar date at the database level.
+- **Strict Zone & Module Isolation (`[eslint.config.js:default]`, `[tsconfig.app.json]`, `[tsconfig.worker.json]`)**: `src/shared` remains pure TypeScript, `src/client` imports only `import type { AppType }` from `src/server`, and `src/server/core` never imports `src/server/modules/*` outside `schema.ts`.
+- **Africa/Cairo Date Authority (`[date.ts:CAIRO_TIMEZONE]`, `[calendar.service.ts:CalendarService]`)**: Non-admin slot bookings and relocations reject dates earlier than `getTodayCairoDate()` evaluated in `Africa/Cairo`.
+- **Fail-Closed Auth & Dev Impersonation (`[auth.ts:resolveAuthSecret]`, `[session.ts:sessionMiddleware]`)**: Non-development environments reject missing or `< 32`-char `BETTER_AUTH_SECRET` values; `x-dev-role` impersonation headers activate only when both `APP_ENV === 'development'` and `ALLOW_DEV_IMPERSONATION === 'true'`.
+- **Creator-Only Mutation & OCC Versioning (`[calendar.policy.ts:defaultCalendarPolicy]`, `[calendar.repository.ts:D1SlotRepository]`)**: Only slot creators (`eb`) or `admin` users may edit, relocate, or cancel slots; updates with `expectedVersion` increment `version + 1` and throw `ConflictError` on mismatch.
+
+## Global Side Effects
+
+- **Cloudflare D1 (`nvmsa-os-db` in `[wrangler.jsonc]`)**: Drizzle migrations (`0000`, `0001`) mutate schema DDL; runtime `/api/auth/*` and `/api/calendar/*` handlers read and write `user`, `session`, `account`, `verification`, `calendar_slots`, and `calendar_slot_audit_logs`.
+- **Browser Storage & Service Worker (`[cache.ts]`, `[client.ts]`, `[sw.js]`)**: Client code persists SWR payloads (`nvmsa_os_swr:*`) and DEV-only personas (`nvmsa_os_dev_persona`) in `localStorage`, while `sw.js` manages Cache Storage bucket `'nvmsa-os-v1'`.
+- **Observability (`[request-logger.ts:requestLogger]`, `[error-handler.ts:errorHandler]`)**: Emits structured request JSON logs via `console.log` and unhandled exception logs via `console.error` on `/api/*` requests.
+
+## System Verification
+
+- Run: `pnpm test`
+- Run: `pnpm lint && pnpm typecheck`
