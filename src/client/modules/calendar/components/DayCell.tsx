@@ -1,69 +1,133 @@
-import { NVMSA_ENTITY_MAP } from '@shared/constants';
+import { Lock, Pencil, Plus } from 'lucide-react';
+import { resolveAccentPalette } from '@shared/constants';
+import type { OrgUnit, SeatSessionUser } from '@shared/types';
 import type { CalendarGridCell } from '@shared/utils';
 import type { CalendarSlotView } from '../hooks/useCalendarMonth';
 
 interface DayCellProps {
   cell: CalendarGridCell;
   slot?: CalendarSlotView;
+  orgUnit?: OrgUnit;
   isToday: boolean;
+  isPast: boolean;
+  isFilteredOut: boolean;
+  isPlacementMode: boolean;
+  viewer: SeatSessionUser | null;
+  tabIndex?: number;
   onSelect: (isoDate: string) => void;
+  onFocusMove?: (isoDate: string, key: string) => void;
 }
 
-export function DayCell({ cell, slot, isToday, onSelect }: DayCellProps) {
-  const entity = slot ? NVMSA_ENTITY_MAP[slot.entityCode] : null;
+export function DayCell({
+  cell,
+  slot,
+  orgUnit,
+  isToday,
+  isPast,
+  isFilteredOut,
+  isPlacementMode,
+  viewer,
+  tabIndex = 0,
+  onSelect,
+  onFocusMove,
+}: DayCellProps) {
+  const palette = resolveAccentPalette(orgUnit?.accentToken);
+  const canViewerEdit =
+    Boolean(slot && viewer) &&
+    (viewer?.capabilities.canMutateAnySlot || slot?.ownerSeatCode === viewer?.seatCode);
+
+  const canPlaceHere =
+    isPlacementMode &&
+    !slot &&
+    (!isPast || Boolean(viewer?.capabilities.canBackfillPastDates));
+
+  const blockedInPlacement = isPlacementMode && (!canPlaceHere || Boolean(slot));
+
+  let surfaceClass = 'border-slate-200 bg-white hover:border-teal-500 hover:bg-teal-50/40';
+  if (slot) {
+    surfaceClass = `${palette.cellSurface} ${palette.cellBorder} shadow-2xs hover:brightness-[0.98]`;
+  } else if (canPlaceHere) {
+    surfaceClass =
+      'border-2 border-dashed border-teal-600 bg-teal-50/50 hover:bg-teal-100/60';
+  } else if (isPast) {
+    surfaceClass = 'border-slate-200/70 bg-slate-50 text-slate-500';
+  }
 
   return (
     <button
       type="button"
+      data-iso-date={cell.isoDate}
+      tabIndex={tabIndex}
+      disabled={blockedInPlacement}
+      aria-disabled={blockedInPlacement || undefined}
       onClick={() => onSelect(cell.isoDate)}
-      className={`group relative flex min-h-[74px] flex-col items-start justify-between rounded-xl border p-1.5 text-left transition-all cursor-pointer sm:min-h-[88px] sm:p-2 ${
-        !cell.inCurrentMonth
-          ? 'border-transparent bg-slate-100/50 text-slate-400'
-          : slot
-            ? 'border-slate-200 bg-white shadow-2xs hover:border-teal-400'
-            : 'border-slate-200/70 bg-white/80 hover:border-teal-300 hover:bg-teal-50/30'
-      } ${isToday ? 'ring-2 ring-teal-600 ring-offset-1' : ''}`}
+      onKeyDown={(event) => {
+        if (onFocusMove) {
+          onFocusMove(cell.isoDate, event.key);
+        }
+      }}
+      className={`group relative flex min-h-[78px] flex-col items-start justify-between rounded-xl border p-1.5 text-start transition-all sm:min-h-[90px] sm:p-2 ${surfaceClass} ${
+        !cell.inCurrentMonth ? 'opacity-65' : ''
+      } ${isFilteredOut ? 'opacity-30' : ''} ${
+        blockedInPlacement ? 'cursor-not-allowed opacity-45' : 'cursor-pointer'
+      } ${isToday ? 'ring-2 ring-teal-700 ring-offset-1' : ''}`}
     >
-      <div className="flex w-full items-center justify-between">
+      <div className="flex w-full items-center justify-between gap-1">
         <span
           className={`text-xs font-bold ${
             isToday
               ? 'inline-flex h-5 w-5 items-center justify-center rounded-full bg-teal-700 text-white'
-              : cell.inCurrentMonth
-                ? 'text-slate-700'
-                : 'text-slate-400'
+              : isPast && !slot
+                ? 'text-slate-500'
+                : 'text-slate-800'
           }`}
         >
           {cell.dayNumber}
         </span>
-        {slot && (
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{ backgroundColor: entity?.color ?? '#0f766e' }}
-            aria-hidden="true"
-          />
+
+        {slot ? (
+          canViewerEdit ? (
+            <Pencil className="h-3 w-3 shrink-0 text-slate-700" aria-label="Editable by you" />
+          ) : (
+            <Lock className="h-3 w-3 shrink-0 text-slate-600" aria-label="Booked" />
+          )
+        ) : (
+          viewer &&
+          (!isPast || viewer.capabilities.canBackfillPastDates) && (
+            <Plus
+              className="h-3.5 w-3.5 shrink-0 text-slate-500 group-hover:text-teal-700"
+              aria-hidden="true"
+            />
+          )
         )}
       </div>
 
       {slot ? (
-        <div className="mt-1 w-full space-y-0.5">
+        <div className="mt-1 w-full min-w-0 space-y-0.5">
           <span
-            className={`inline-block max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold leading-tight ${
-              entity?.badgeClass ?? 'bg-teal-100 text-teal-800 border-teal-200'
-            }`}
+            className={`inline-block max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold leading-tight ${palette.badgeClass}`}
           >
-            {slot.entityCode}
+            {slot.orgUnitId}
           </span>
-          <p className="line-clamp-1 text-[10px] font-medium text-slate-600 sm:text-[11px]">
+          <p
+            dir="auto"
+            className="line-clamp-2 break-words text-[10px] font-semibold leading-snug text-slate-800 sm:text-[11px]"
+          >
             {slot.title}
           </p>
         </div>
       ) : (
-        cell.inCurrentMonth && (
-          <span className="text-[10px] font-medium text-slate-300 group-hover:text-teal-600">
-            Open
-          </span>
-        )
+        <span
+          className={`text-[10px] font-semibold ${
+            canPlaceHere
+              ? 'text-teal-800'
+              : isPast
+                ? 'text-slate-500'
+                : 'text-slate-600 group-hover:text-teal-800'
+          }`}
+        >
+          {canPlaceHere ? 'Place' : isPast ? 'Past' : 'Open'}
+        </span>
       )}
     </button>
   );

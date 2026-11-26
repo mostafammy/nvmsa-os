@@ -1,22 +1,68 @@
-import { Suspense } from 'react';
+import { Component, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { useSession } from '../core/auth/useSession';
 import { MobileShell } from './layout/MobileShell';
-import { OS_MODULES, type OsModuleDefinition } from './modules.registry';
+import { OS_MODULES } from './modules.registry';
 
-function PlannedModulePlaceholder({ module }: { module: OsModuleDefinition }) {
-  const Icon = module.icon;
-  return (
-    <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-        <Icon className="h-6 w-6" />
+interface ModuleErrorBoundaryState {
+  error: Error | null;
+}
+
+class ModuleErrorBoundary extends Component<
+  { moduleName: string; children: ReactNode },
+  ModuleErrorBoundaryState
+> {
+  state: ModuleErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): ModuleErrorBoundaryState {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <section className="rounded-2xl border border-red-200 bg-white p-6 text-center shadow-xs">
+          <h2 className="text-base font-bold text-slate-900">
+            {this.props.moduleName} failed to render
+          </h2>
+          <p className="mt-1 text-xs text-slate-600">{this.state.error.message}</p>
+          <button
+            type="button"
+            onClick={() => this.setState({ error: null })}
+            className="mt-4 cursor-pointer rounded-xl bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
+          >
+            Retry Module
+          </button>
+        </section>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function ModuleGuard({
+  requiredCapability,
+  children,
+}: {
+  requiredCapability?: keyof NonNullable<ReturnType<typeof useSession>['user']>['capabilities'];
+  children: ReactNode;
+}) {
+  const { user, isLoading } = useSession();
+  if (!requiredCapability) {
+    return <>{children}</>;
+  }
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
+        Verifying seat authorization...
       </div>
-      <h2 className="text-base font-bold text-slate-900">{module.name}</h2>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{module.description}</p>
-      <span className="mt-4 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-        Planned Module
-      </span>
-    </section>
-  );
+    );
+  }
+  if (!user || !user.capabilities[requiredCapability]) {
+    return <Navigate to="/calendar" replace />;
+  }
+  return <>{children}</>;
 }
 
 export function AppRouter() {
@@ -32,19 +78,19 @@ export function AppRouter() {
                 key={mod.id}
                 path={mod.route}
                 element={
-                  LazyComponent ? (
-                    <Suspense
-                      fallback={
-                        <div className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
-                          Loading {mod.name}...
-                        </div>
-                      }
-                    >
-                      <LazyComponent />
-                    </Suspense>
-                  ) : (
-                    <PlannedModulePlaceholder module={mod} />
-                  )
+                  <ModuleGuard requiredCapability={mod.requiredCapability}>
+                    <ModuleErrorBoundary moduleName={mod.name}>
+                      <Suspense
+                        fallback={
+                          <div className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
+                            Loading {mod.name}...
+                          </div>
+                        }
+                      >
+                        <LazyComponent />
+                      </Suspense>
+                    </ModuleErrorBoundary>
+                  </ModuleGuard>
                 }
               />
             );

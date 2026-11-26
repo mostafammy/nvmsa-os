@@ -1,5 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
-import { CalendarDays, Sparkles, Users, type LucideIcon } from 'lucide-react';
+import { CalendarDays, ShieldCheck, type LucideIcon } from 'lucide-react';
+import type { SeatCapabilities } from '@shared/constants';
 
 export interface OsModuleDefinition {
   id: string;
@@ -7,18 +8,22 @@ export interface OsModuleDefinition {
   shortLabel: string;
   route: string;
   icon: LucideIcon;
-  status: 'active' | 'planned';
   description: string;
-  component?: LazyExoticComponent<ComponentType>;
+  requiredCapability?: keyof SeatCapabilities;
+  component: LazyExoticComponent<ComponentType>;
 }
 
 const LazyCalendarPage = lazy(() =>
   import('../modules/calendar').then((mod) => ({ default: mod.CalendarPage })),
 );
 
+const LazyAdminPage = lazy(() =>
+  import('../modules/admin').then((mod) => ({ default: mod.AdminPage })),
+);
+
 /**
- * Central OS module registry (Open/Closed Principle):
- * Plugging in Module 2+ adds one entry here without touching existing modules.
+ * Central OS module registry (Open/Closed Principle).
+ * v1.0 mounts Module 1 (Content Calendar) plus capability-gated /admin seat governance.
  */
 export const OS_MODULES: readonly OsModuleDefinition[] = [
   {
@@ -27,26 +32,17 @@ export const OS_MODULES: readonly OsModuleDefinition[] = [
     shortLabel: 'Calendar',
     route: '/calendar',
     icon: CalendarDays,
-    status: 'active',
-    description: '1-post-per-day locker, creator-locked editing, and relocation queue.',
+    description: '1-post-per-Cairo-day ledger, seat-locked editing, and relocation queue.',
     component: LazyCalendarPage,
   },
   {
-    id: 'activities',
-    name: 'Activities & Events',
-    shortLabel: 'Activities',
-    route: '/activities',
-    icon: Sparkles,
-    status: 'planned',
-    description: 'Activity proposals, enrollment tracking, and impact reports (v1.x).',
-  },
-  {
-    id: 'recruitment',
-    name: 'Member Hub',
-    shortLabel: 'Members',
-    route: '/members',
-    icon: Users,
-    status: 'planned',
-    description: 'Committee recruitment, member directory, and handover logs (v2.0).',
+    id: 'admin',
+    name: 'Seat & Unit Governance',
+    shortLabel: 'Admin',
+    route: '/admin',
+    icon: ShieldCheck,
+    description: 'Manage the 13 official NVMSA leadership seats and organization units.',
+    requiredCapability: 'canManageSeats',
+    component: LazyAdminPage,
   },
 ];

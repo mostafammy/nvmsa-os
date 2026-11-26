@@ -1,18 +1,27 @@
 import type { ReactNode } from 'react';
-import { hasMinimumRole, type UserRole } from '@shared/constants';
+import type { SeatCapabilities } from '@shared/constants';
 import { useSession } from './useSession';
 
 interface RoleGateProps {
-  minimumRole: UserRole;
+  requireAuthenticated?: boolean;
+  capability?: keyof SeatCapabilities;
   fallback?: ReactNode;
   children: ReactNode;
 }
 
-export function RoleGate({ minimumRole, fallback = null, children }: RoleGateProps) {
+export function RoleGate({
+  requireAuthenticated = true,
+  capability,
+  fallback = null,
+  children,
+}: RoleGateProps) {
   const { user } = useSession();
-  const effectiveRole: UserRole = user?.role ?? 'officer';
 
-  if (!hasMinimumRole(effectiveRole, minimumRole)) {
+  if (requireAuthenticated && !user) {
+    return <>{fallback}</>;
+  }
+
+  if (capability && (!user || !user.capabilities[capability])) {
     return <>{fallback}</>;
   }
 

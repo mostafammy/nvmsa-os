@@ -1,43 +1,54 @@
 import { hc } from 'hono/client';
 import type { AppType } from '@server/index';
 
-const DEV_PERSONA_STORAGE_KEY = 'nvmsa_os_dev_persona';
+export class ApiRequestError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly details?: unknown;
+  readonly requestId?: string;
 
-export interface DevPersona {
-  role: 'officer' | 'eb' | 'admin';
-  userId: string;
-  userName: string;
-  entityCode: string;
+  constructor(
+    message: string,
+    status: number,
+    code: string,
+    details?: unknown,
+    requestId?: string,
+  ) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+    this.code = code;
+    this.details = details;
+    this.requestId = requestId;
+  }
 }
 
-export function getStoredDevPersona(): DevPersona | null {
-  if (!import.meta.env.DEV) return null;
+interface ServerErrorEnvelope {
+  error?: {
+    code?: string;
+    message?: string;
+    details?: unknown;
+    requestId?: string;
+  };
+}
+
+export async function parseApiError(res: Response, fallbackMessage: string): Promise<ApiRequestError> {
   try {
-    const raw = localStorage.getItem(DEV_PERSONA_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as DevPersona) : null;
+    const body = (await res.json()) as ServerErrorEnvelope;
+    return new ApiRequestError(
+      body.error?.message ?? fallbackMessage,
+      res.status,
+      body.error?.code ?? 'API_ERROR',
+      body.error?.details,
+      body.error?.requestId,
+    );
   } catch {
-    return null;
+    return new ApiRequestError(fallbackMessage, res.status, 'API_ERROR');
   }
 }
 
-export function setStoredDevPersona(persona: DevPersona | null): void {
-  if (!import.meta.env.DEV) return;
-  if (!persona) {
-    localStorage.removeItem(DEV_PERSONA_STORAGE_KEY);
-    return;
-  }
-  localStorage.setItem(DEV_PERSONA_STORAGE_KEY, JSON.stringify(persona));
+export function createIdempotencyKey(): string {
+  return crypto.randomUUID();
 }
 
-export const apiClient = hc<AppType>('/', {
-  headers: (): Record<string, string> => {
-    const devPersona = getStoredDevPersona();
-    if (!devPersona) return {};
-    return {
-      'x-dev-role': devPersona.role,
-      'x-dev-user-id': devPersona.userId,
-      'x-dev-user-name': devPersona.userName,
-      'x-dev-entity': devPersona.entityCode,
-    };
-  },
-});
+export const apiClient = hc<AppType>('/');

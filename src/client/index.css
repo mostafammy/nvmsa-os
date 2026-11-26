@@ -16,3 +16,14 @@
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+    scroll-behavior: auto !important;
+  }
+}

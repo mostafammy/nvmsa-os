@@ -1,52 +1,46 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { SessionUser, SignInInput } from '@shared/types';
-import {
-  apiClient,
-  getStoredDevPersona,
-  setStoredDevPersona,
-  type DevPersona,
-} from '../api/client';
+import type { SeatSessionUser } from '@shared/types';
+import { apiClient, parseApiError } from '../api/client';
+import { clearAllSwrCache } from '../storage/cache';
+
+export type AuthOutcome = 'public' | 'authenticated' | 'seat_revoked' | 'auth_error';
 
 interface SessionContextValue {
-  user: SessionUser | null;
+  user: SeatSessionUser | null;
+  authOutcome: AuthOutcome;
   isLoading: boolean;
   refreshSession: () => Promise<void>;
-  signIn: (input: SignInInput) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  switchDevPersona: (persona: DevPersona | null) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const [user, setUser] = useState<SeatSessionUser | null>(null);
+  const [authOutcome, setAuthOutcome] = useState<AuthOutcome>('public');
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshSession = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await apiClient.api.me.$get();
+      const res = await apiClient.api.v1.me.$get();
       if (res.ok) {
-        const payload = (await res.json()) as { user: SessionUser | null };
+        const payload = (await res.json()) as {
+          user: SeatSessionUser | null;
+          authOutcome?: AuthOutcome;
+        };
         setUser(payload.user);
+        setAuthOutcome(payload.authOutcome ?? (payload.user ? 'authenticated' : 'public'));
       } else {
         setUser(null);
+        setAuthOutcome('public');
       }
     } catch {
-      const devPersona = getStoredDevPersona();
-      if (devPersona) {
-        setUser({
-          id: devPersona.userId,
-          name: devPersona.userName,
-          email: `${devPersona.role}@nvmsa.local`,
-          role: devPersona.role,
-          entityCode: devPersona.entityCode as SessionUser['entityCode'],
-        });
-      } else {
-        setUser(null);
-      }
+      setUser(null);
+      setAuthOutcome('public');
     } finally {
       setIsLoading(false);
     }
@@ -56,32 +50,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refreshSession();
   }, [refreshSession]);
 
-  const signIn = useCallback(
-    async (input: SignInInput) => {
-      const res = await fetch('/api/auth/sign-in/email', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(input),
-      });
+  const signInWithGoogle = useCallback(async () => {
+    const res = await fetch('/api/auth/sign-in/social', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        provider: 'google',
+        callbackURL: window.location.href,
+      }),
+    });
 
-      if (!res.ok) {
-        let message = 'Invalid email or password';
-        try {
-          const body = (await res.json()) as { message?: string; error?: { message?: string } };
-          message = body.message ?? body.error?.message ?? message;
-        } catch {
-          // Keep default error message
-        }
-        throw new Error(message);
-      }
+    if (!res.ok) {
+      throw await parseApiError(res, 'Could not start Google sign-in');
+    }
 
-      setStoredDevPersona(null);
-      await refreshSession();
-      await queryClient.invalidateQueries();
-    },
-    [queryClient, refreshSession],
-  );
+    const payload = (await res.json()) as { url?: string };
+    if (payload.url) {
+      window.location.assign(payload.url);
+    } else {
+      throw new Error('Google sign-in redirect URL was not returned by server');
+    }
+  }, []);
 
   const signOut = useCallback(async () => {
     try {
@@ -90,24 +80,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include',
       });
     } finally {
-      setStoredDevPersona(null);
+      clearAllSwrCache();
+      queryClient.clear();
       setUser(null);
-      await queryClient.invalidateQueries();
+      setAuthOutcome('public');
     }
   }, [queryClient]);
 
-  const switchDevPersona = useCallback(
-    async (persona: DevPersona | null) => {
-      setStoredDevPersona(persona);
-      await refreshSession();
-      await queryClient.invalidateQueries();
-    },
-    [queryClient, refreshSession],
-  );
-
   return (
     <SessionContext.Provider
-      value={{ user, isLoading, refreshSession, signIn, signOut, switchDevPersona }}
+      value={{
+        user,
+        authOutcome,
+        isLoading,
+        refreshSession,
+        signInWithGoogle,
+        signOut,
+      }}
     >
       {children}
     </SessionContext.Provider>

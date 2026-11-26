@@ -1,5 +1,10 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { LazyMotion, MotionConfig, m } from 'motion/react';
 import { X } from 'lucide-react';
+import { MOTION_SPRINGS } from '../core/motion/tokens';
+
+const loadDomAnimation = () =>
+  import('../core/motion/domAnimation').then((mod) => mod.default);
 
 interface BottomSheetProps {
   open: boolean;
@@ -9,49 +14,144 @@ interface BottomSheetProps {
   children: ReactNode;
 }
 
+const DISMISS_THRESHOLD_PX = 110;
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function BottomSheet({ open, title, subtitle, onClose, children }: BottomSheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef<number | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [keyboardOffsetPx, setKeyboardOffsetPx] = useState(0);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setDragOffsetY(0);
+      setKeyboardOffsetPx(0);
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !sheetRef.current) return;
+      const focusables = Array.from(
+        sheetRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) return;
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
+    const handleViewportResize = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOffsetPx(offset);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.visualViewport?.addEventListener('resize', handleViewportResize);
+    window.visualViewport?.addEventListener('scroll', handleViewportResize);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+      window.visualViewport?.removeEventListener('resize', handleViewportResize);
+      window.visualViewport?.removeEventListener('scroll', handleViewportResize);
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    dragStartY.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragStartY.current === null) return;
+    const delta = Math.max(0, event.clientY - dragStartY.current);
+    setDragOffsetY(delta);
+  };
+
+  const handlePointerUp = () => {
+    if (dragStartY.current === null) return;
+    const shouldDismiss = dragOffsetY >= DISMISS_THRESHOLD_PX;
+    dragStartY.current = null;
+    setDragOffsetY(0);
+    if (shouldDismiss) {
+      onClose();
+    }
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/45 backdrop-blur-[1px] sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={onClose}
-    >
-      <div
-        className="safe-bottom w-full max-w-lg rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl max-h-[88dvh] flex flex-col"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
-          <div className="h-1.5 w-10 rounded-full bg-slate-200" />
-        </div>
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">{title}</h2>
-            {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close panel"
-            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+    <LazyMotion features={loadDomAnimation} strict>
+      <MotionConfig reducedMotion="user">
+        <m.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/45 backdrop-blur-[1px] sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          style={keyboardOffsetPx > 0 ? { paddingBottom: `${keyboardOffsetPx}px` } : undefined}
+          onClick={onClose}
+        >
+          <m.div
+            ref={sheetRef}
+            initial={{ y: 36, opacity: 0.96 }}
+            animate={{ y: dragOffsetY, opacity: 1 }}
+            transition={dragOffsetY > 0 ? { duration: 0 } : MOTION_SPRINGS.sheet}
+            className="safe-bottom flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl"
+            onClick={(event) => event.stopPropagation()}
           >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
-      </div>
-    </div>
+            <div
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              className="flex cursor-grab touch-none justify-center pt-2.5 pb-1 sm:hidden"
+            >
+              <div className="h-1.5 w-10 rounded-full bg-slate-300" />
+            </div>
+
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-bold text-slate-900">{title}</h2>
+                {subtitle && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close panel"
+                className="cursor-pointer rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-5 py-4">{children}</div>
+          </m.div>
+        </m.div>
+      </MotionConfig>
+    </LazyMotion>
   );
 }

@@ -1,11 +1,10 @@
-const CACHE_NAME = 'nvmsa-os-v1';
-const APP_SHELL = ['/', '/manifest.webmanifest'];
+const CACHE_NAME = 'nvmsa-os-v2';
+const APP_SHELL = ['/', '/calendar', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -17,17 +16,48 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.method !== 'GET' || new URL(request.url).pathname.startsWith('/api/')) {
+  const url = new URL(request.url);
+
+  if (request.method !== 'GET' || url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          return (
+            (await caches.match(request)) ||
+            (await caches.match('/calendar')) ||
+            (await caches.match('/'))
+          );
+        }),
+    );
     return;
   }
 
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        if (response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
         return response;
       })
       .catch(() => caches.match(request)),
