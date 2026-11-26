@@ -1,5 +1,10 @@
 # Copy to .dev.vars for local Cloudflare Worker development (never commit .dev.vars)
 APP_ENV=development
-ALLOW_DEV_IMPERSONATION=true
+APP_TIMEZONE=Africa/Cairo
 BETTER_AUTH_SECRET=local-dev-secret-replace-with-at-least-32-chars
 BETTER_AUTH_URL=http://localhost:5173
+GOOGLE_CLIENT_ID=replace-with-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=replace-with-google-oauth-client-secret
+SUPER_ADMIN_EMAIL=mostafa.yaser.developer@gmail.com
+# Optional local/CI test-session provisioning secret (never set in production)
+TEST_AUTH_SECRET=

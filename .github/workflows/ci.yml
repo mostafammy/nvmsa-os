@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    name: Lint, Typecheck & Test
+    name: Lint, Typecheck, Tests & Budgets
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,7 +17,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,14 +28,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify D1 migrations
+        run: pnpm check:migrations
+
       - name: Lint
         run: pnpm lint
 
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Run unit tests
+      - name: Run unit & route tests
         run: pnpm test
 
       - name: Build production bundle
         run: pnpm build
+
+      - name: Check bundle budgets
+        run: pnpm check:budgets

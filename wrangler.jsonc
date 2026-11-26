@@ -4,6 +4,13 @@
   "main": "src/server/index.ts",
   "compatibility_date": "2025-02-14",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "nvmsa.us/*",
+      "zone_name": "nvmsa.us"
+    }
+  ],
   "assets": {
     "not_found_handling": "single-page-application"
   },
@@ -17,7 +24,22 @@
   ],
   "vars": {
     "APP_ENV": "production",
-    "ALLOW_DEV_IMPERSONATION": "false",
     "APP_TIMEZONE": "Africa/Cairo"
+  },
+  "env": {
+    "preview": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "nvmsa-os-db-preview",
+          "database_id": "307d995e-2a2b-43de-af5b-3bcfa00aa40e",
+          "migrations_dir": "drizzle"
+        }
+      ],
+      "vars": {
+        "APP_ENV": "staging",
+        "APP_TIMEZONE": "Africa/Cairo"
+      }
+    }
   }
 }
