@@ -8,15 +8,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
 }
 
-// One button system: a solid brand pill, an outlined ink pill, a danger pill and a quiet ghost.
-// Hover steps 1px up on a fine pointer, press sinks 1px and scales .985 everywhere.
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    'bg-brand text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.14)] hover:bg-brand-strong disabled:bg-brand/45',
+    'bg-brand text-white border border-brand-glow/30 shadow-[0_8px_24px_-8px_rgb(20_184_166/0.55),inset_0_1px_0_rgb(255_255_255/0.2)] hover:bg-brand-strong hover:border-brand-glow/55 disabled:bg-brand/40 disabled:shadow-none',
   secondary:
-    'bg-surface text-ink border border-line-strong hover:border-ink/40 hover:bg-sunken/60 disabled:opacity-50',
-  danger: 'bg-red-700 text-white hover:bg-red-800 disabled:bg-red-300',
-  ghost: 'bg-transparent text-ink-soft hover:bg-ink/[0.06] hover:text-ink disabled:opacity-50',
+    'bg-elevated text-ink border border-line-strong shadow-[inset_0_1px_0_rgb(255_255_255/0.05)] hover:border-brand-glow/40 hover:bg-white/[0.09] disabled:opacity-45',
+  danger:
+    'bg-red-700 text-white border border-red-400/30 hover:bg-red-600 disabled:bg-red-900/50 disabled:text-red-200/60',
+  ghost:
+    'bg-transparent text-ink-soft hover:bg-white/[0.08] hover:text-ink disabled:opacity-45',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
@@ -34,7 +34,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex select-none items-center justify-center gap-2 whitespace-nowrap transition-[transform,background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-ui)] [@media(hover:hover)]:hover:-translate-y-px active:translate-y-px active:scale-[0.985] active:duration-75 cursor-pointer disabled:cursor-not-allowed disabled:translate-y-0 disabled:scale-100 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex select-none items-center justify-center gap-2 whitespace-nowrap transition-[transform,background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-ui)] [@media(hover:hover)]:hover:-translate-y-px active:translate-y-px active:scale-[0.97] active:duration-75 cursor-pointer disabled:cursor-not-allowed disabled:translate-y-0 disabled:scale-100 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
       {...props}
     />
   );

@@ -41,12 +41,12 @@ function ActiveToggle({
       />
       <span
         aria-hidden="true"
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand ${
-          checked ? 'border-brand bg-brand' : 'border-line-strong bg-sunken'
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-glow ${
+          checked ? 'border-brand-glow/55 bg-brand' : 'border-line-strong bg-sunken'
         }`}
       >
         <span
-          className={`inline-block h-4 w-4 rounded-full bg-surface shadow-xs transition-transform duration-200 ease-[var(--ease-enter)] ${
+          className={`inline-block h-4 w-4 rounded-full bg-white shadow-xs transition-transform duration-200 ease-[var(--ease-enter)] ${
             checked ? 'translate-x-5' : 'translate-x-1'
           }`}
         />
@@ -96,13 +96,13 @@ function SeatRowCard({
             <span className="font-mono text-[15px] font-medium text-ink">{seat.seatCode}</span>
             <Badge>{seat.branch.replace('_', ' ')}</Badge>
             {!seat.isActive && (
-              <Badge className="border-red-200 bg-red-50 text-red-800">Inactive</Badge>
+              <Badge className="border-red-400/35 bg-red-500/20 text-red-200">Inactive</Badge>
             )}
           </div>
           <p className="mt-1 text-[14px] text-ink-soft">{seat.title}</p>
           <p className="mt-0.5 text-[13px] text-muted">
             Scope:{' '}
-            <span className="font-mono text-ink-soft">
+            <span className="font-mono text-brand-text">
               {seat.allowedOrgUnits.join(', ') || 'All Units'}
             </span>
           </p>
@@ -140,7 +140,7 @@ function SeatRowCard({
         </Button>
       </div>
       {email.trim().toLowerCase() !== seat.assignedEmail && (
-        <p className="text-[13px] font-medium text-amber-900">
+        <p className="text-[13px] font-medium text-amber-200">
           Saving revokes active login sessions for {seat.assignedEmail} immediately.
         </p>
       )}
@@ -338,13 +338,13 @@ export function AdminPage() {
   };
 
   return (
-    <div className="animate-enter space-y-4 sm:space-y-5">
+    <div className="animate-enter mx-auto max-w-5xl space-y-4 sm:space-y-5">
       <div className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
         <div className="flex items-center gap-2.5 text-[14px] text-ink-soft">
-          <ShieldCheck className="h-5 w-5 text-brand" />
+          <ShieldCheck className="h-5 w-5 text-brand-text" />
           <span className="font-medium">
             Managing as{' '}
-            <span className="font-mono text-ink">
+            <span className="font-mono text-brand-text">
               {user?.tier === 'super_admin' ? 'System' : user?.seatCode}
             </span>
           </span>
@@ -357,7 +357,7 @@ export function AdminPage() {
         >
           <span
             aria-hidden="true"
-            className="absolute inset-y-1 start-1 w-[calc(50%-0.25rem)] rounded-full bg-surface shadow-[0_1px_3px_rgb(20_32_30/0.12)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
+            className="absolute inset-y-1 start-1 w-[calc(50%-0.25rem)] rounded-full bg-brand shadow-[0_0_18px_-6px_rgb(45_212_191/0.75)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
             style={{ transform: tab === 'units' ? 'translateX(100%)' : 'translateX(0%)' }}
           />
           <button
@@ -366,7 +366,7 @@ export function AdminPage() {
             aria-selected={tab === 'seats'}
             onClick={() => setTab('seats')}
             className={`relative z-10 min-h-11 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors ${
-              tab === 'seats' ? 'text-ink' : 'text-muted hover:text-ink'
+              tab === 'seats' ? 'text-white' : 'text-muted hover:text-ink'
             }`}
           >
             Official Seats ({seatsQuery.data?.length ?? 13})
@@ -377,7 +377,7 @@ export function AdminPage() {
             aria-selected={tab === 'units'}
             onClick={() => setTab('units')}
             className={`relative z-10 min-h-11 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors ${
-              tab === 'units' ? 'text-ink' : 'text-muted hover:text-ink'
+              tab === 'units' ? 'text-white' : 'text-muted hover:text-ink'
             }`}
           >
             Org Units ({unitsQuery.data?.length ?? 11})
@@ -414,10 +414,10 @@ export function AdminPage() {
         <section className="space-y-4">
           <form
             onSubmit={handleCreateUnit}
-            className="panel space-y-3.5 border-brand/30 p-4 sm:p-5"
+            className="panel-glow space-y-3.5 p-4 sm:p-5"
           >
             <div className="flex items-center gap-2 text-[15px] font-medium text-ink">
-              <Users className="h-4 w-4 text-brand" />
+              <Users className="h-4 w-4 text-brand-text" />
               <span>Add Organization Unit</span>
             </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">

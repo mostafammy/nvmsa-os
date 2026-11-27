@@ -21,16 +21,16 @@ export function BottomNav() {
   return (
     <nav
       aria-label="NVMSA OS Modules"
-      className="safe-bottom pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 pb-3"
+      className="safe-bottom pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 pb-3 lg:hidden"
     >
       <div
-        className="pointer-events-auto relative mx-auto grid max-w-xs rounded-full border border-line bg-surface/90 p-1.5 shadow-[0_12px_32px_-16px_rgb(20_32_30/0.45)] backdrop-blur-xl"
+        className="pointer-events-auto relative mx-auto grid max-w-xs rounded-full border border-line-strong bg-surface/90 p-1.5 shadow-[0_18px_40px_-14px_rgb(0_0_0/0.85)] backdrop-blur-2xl"
         style={{ gridTemplateColumns: `repeat(${visibleModules.length}, minmax(0, 1fr))` }}
       >
-        {/* One indicator slides between tabs by transform alone. */}
+        {/* Sliding pill indicator moved by transform alone */}
         <span
           aria-hidden="true"
-          className="absolute inset-y-1.5 start-1.5 rounded-full bg-ink transition-transform duration-[240ms] ease-[var(--ease-enter)]"
+          className="absolute inset-y-1.5 start-1.5 rounded-full bg-brand shadow-[0_0_20px_-6px_rgb(45_212_191/0.75)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
           style={{
             width: `calc((100% - 0.75rem) / ${visibleModules.length})`,
             transform: `translateX(${activeIndex * 100}%)`,
@@ -44,7 +44,7 @@ export function BottomNav() {
               to={mod.route}
               className={({ isActive }) =>
                 `relative z-10 flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-medium transition-colors duration-200 active:scale-[0.97] ${
-                  isActive ? 'text-paper' : 'text-ink-soft hover:text-ink'
+                  isActive ? 'text-white' : 'text-ink-soft hover:text-ink'
                 }`
               }
             >

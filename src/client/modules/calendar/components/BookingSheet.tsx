@@ -84,7 +84,7 @@ function OrgUnitPicker({
     const only = permittedUnits[0];
     const palette = resolveAccentPalette(only?.accentToken);
     return (
-      <div className="flex min-h-11 items-center rounded-[14px] border border-line bg-paper px-3.5">
+      <div className="flex min-h-11 items-center rounded-[14px] border border-line bg-sunken px-3.5">
         <Badge className={palette.badgeClass}>{only?.code ?? value}</Badge>
       </div>
     );
@@ -103,8 +103,8 @@ function OrgUnitPicker({
               onClick={() => onChange(unit.id)}
               className={`min-h-10 cursor-pointer rounded-[10px] text-[13px] font-medium transition-colors ${
                 active
-                  ? 'bg-ink text-paper shadow-[0_1px_2px_rgb(20_32_30/0.14)]'
-                  : 'text-ink-soft hover:bg-surface/70 hover:text-ink'
+                  ? 'bg-brand text-white shadow-[0_0_14px_-4px_rgb(45_212_191/0.6)]'
+                  : 'text-ink-soft hover:bg-white/[0.06] hover:text-ink'
               }`}
             >
               {unit.code}
@@ -155,10 +155,12 @@ function SlotAuditTimeline({ slotId }: { slotId: string }) {
       {history.map((entry) => (
         <li
           key={entry.id}
-          className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[13px]"
+          className="rounded-xl border border-line bg-elevated/80 px-3.5 py-2.5 text-[13px]"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-[12px] font-medium text-ink">{entry.action}</span>
+            <span className="font-mono text-[12px] font-medium text-brand-text">
+              {entry.action}
+            </span>
             <span className="font-mono text-[12px] text-muted">
               {new Date(entry.createdAt).toLocaleString()}
             </span>
@@ -415,13 +417,13 @@ export function BookingSheet({
         {conflictInfo && (
           <div
             role="alert"
-            className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-[13px] text-amber-950"
+            className="space-y-3 rounded-2xl border border-amber-400/35 bg-amber-500/15 p-4 text-[13px] text-amber-100"
           >
             <div className="flex items-start gap-2.5">
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" />
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
               <div>
                 <p className="font-medium">This day was just booked</p>
-                <p className="mt-0.5 leading-relaxed">
+                <p className="mt-0.5 leading-relaxed text-amber-200/90">
                   Occupied by <strong>{conflictInfo.winner.orgUnitId}</strong>:{' '}
                   {conflictInfo.winner.title}
                 </p>
@@ -442,10 +444,10 @@ export function BookingSheet({
         {staleLatest && (
           <div
             role="alert"
-            className="space-y-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-[13px] text-red-900"
+            className="space-y-3 rounded-2xl border border-red-400/35 bg-red-500/15 p-4 text-[13px] text-red-100"
           >
             <p className="font-medium">Updated concurrently (v{staleLatest.version})</p>
-            <p>
+            <p className="text-red-200/90">
               Latest title: <strong>{staleLatest.title}</strong> ({staleLatest.orgUnitId})
             </p>
             <Button
@@ -472,16 +474,21 @@ export function BookingSheet({
             <div className="flex flex-wrap items-center gap-2">
               <Badge className={slotPalette.badgeClass}>{slot.orgUnitId}</Badge>
               <Badge>{slot.contentType.replace('_', ' ')}</Badge>
-              <Badge className="border-emerald-200 bg-emerald-50 text-emerald-900">Booked</Badge>
+              <Badge className="border-emerald-400/35 bg-emerald-500/20 text-emerald-200">
+                Booked
+              </Badge>
             </div>
-            <div className="space-y-2 rounded-2xl border border-line bg-paper p-4 text-[14px] text-ink-soft">
+            <div className="space-y-2 rounded-2xl border border-line bg-elevated/80 p-4 text-[14px] text-ink-soft">
               <p className="font-medium text-ink">{slotUnit?.name ?? slot.orgUnitId}</p>
               <p className="text-[13px] text-muted">
-                Seat: <span className="font-mono text-ink-soft">{slot.ownerSeatCode}</span> · Booked
+                Seat: <span className="font-mono text-brand-text">{slot.ownerSeatCode}</span> · Booked
                 by {slot.creatorName}
               </p>
               {isManagedSlot(slot) && slot.notes && (
-                <p dir="auto" className="border-t border-line pt-2.5 text-[14px] leading-relaxed text-ink-soft">
+                <p
+                  dir="auto"
+                  className="border-t border-line pt-2.5 text-[14px] leading-relaxed text-ink-soft"
+                >
                   {slot.notes}
                 </p>
               )}
@@ -490,7 +497,7 @@ export function BookingSheet({
                   href={slot.assetUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-brand underline decoration-brand/40 underline-offset-4 hover:decoration-brand"
+                  className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-brand-text underline decoration-brand-glow/40 underline-offset-4 hover:decoration-brand-glow"
                 >
                   Open Asset Link <ExternalLink className="h-4 w-4" />
                 </a>
@@ -516,7 +523,7 @@ export function BookingSheet({
           </div>
         ) : !slot && !user ? (
           <div className="flex flex-col items-center space-y-3 py-3 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-glow/30 bg-brand-soft text-brand-text">
               <CalendarDays className="h-6 w-6" />
             </div>
             <p className="text-[16px] font-medium text-ink">This Cairo date is open</p>
@@ -546,7 +553,7 @@ export function BookingSheet({
           </div>
         ) : blockedPastBooking ? (
           <div className="flex flex-col items-center space-y-2.5 py-4 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sunken text-ink-soft">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-line bg-elevated text-ink-soft">
               <Lock className="h-5 w-5" />
             </div>
             <p className="text-[16px] font-medium text-ink">Past Date Locked</p>
@@ -556,7 +563,7 @@ export function BookingSheet({
           </div>
         ) : showOverrideForm && slot && canOverride ? (
           <form onSubmit={handleOverrideSubmit} className="space-y-4">
-            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-[13px] leading-relaxed text-amber-950">
+            <div className="rounded-2xl border border-amber-400/35 bg-amber-500/15 p-3.5 text-[13px] leading-relaxed text-amber-100">
               Overriding moves <strong>{slot.title}</strong> ({slot.orgUnitId}) to the Relocation
               Queue atomically and places your new post on {selectedDate}.
             </div>
@@ -789,8 +796,8 @@ export function BookingSheet({
                 {showHistory && <SlotAuditTimeline slotId={slot.id} />}
 
                 {confirmCancel ? (
-                  <div className="space-y-3 rounded-2xl border border-red-200 bg-red-50 p-4">
-                    <p className="text-[13px] font-medium text-red-900">
+                  <div className="space-y-3 rounded-2xl border border-red-400/35 bg-red-500/15 p-4">
+                    <p className="text-[13px] font-medium text-red-100">
                       Cancel this booked slot? This immediately frees {selectedDate}.
                     </p>
                     <div className="flex gap-2">
@@ -825,9 +832,9 @@ export function BookingSheet({
                 ) : showRelocateForm ? (
                   <form
                     onSubmit={handleQueueRelocation}
-                    className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-4"
+                    className="space-y-3 rounded-2xl border border-amber-400/35 bg-amber-500/15 p-4"
                   >
-                    <label htmlFor="relocate-reason" className="field-label !text-amber-950">
+                    <label htmlFor="relocate-reason" className="field-label !text-amber-100">
                       Reason for moving to Relocation Queue
                     </label>
                     <input

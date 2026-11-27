@@ -30,11 +30,18 @@ interface CalendarGridProps {
   onSelectDate: (isoDate: string) => void;
 }
 
-// The month slides in from the side it was asked for: next from the right, previous from the left.
 const monthVariants = {
-  enter: (dir: number) => ({ x: dir === 0 ? 0 : dir * 48, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir === 0 ? 0 : dir * -48, opacity: 0 }),
+  enter: (dir: number) => ({
+    x: dir === 0 ? 0 : dir * 56,
+    opacity: 0,
+    scale: dir === 0 ? 1 : 0.985,
+  }),
+  center: { x: 0, opacity: 1, scale: 1 },
+  exit: (dir: number) => ({
+    x: dir === 0 ? 0 : dir * -56,
+    opacity: 0,
+    scale: dir === 0 ? 1 : 0.985,
+  }),
 };
 
 export function CalendarGrid({
@@ -116,28 +123,28 @@ export function CalendarGrid({
     <section
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="panel p-3 sm:p-5"
+      className="panel p-2.5 sm:p-6"
     >
-      <div className="mb-4 flex items-end justify-between gap-3 px-1 sm:mb-5">
+      <div className="mb-4 flex items-end justify-between gap-3 px-0.5 sm:mb-6">
         <div className="min-w-0">
           <h2
             data-month-heading
             aria-live="polite"
-            className="flex items-baseline gap-2 font-display text-[30px] font-normal leading-none tracking-[-0.035em] text-ink sm:text-[40px]"
+            className="flex items-baseline gap-2.5 font-display text-[30px] font-normal leading-none tracking-[-0.035em] text-ink sm:text-[40px]"
           >
             <span className="truncate">{monthName}</span>{' '}
-            <span className="font-mono text-[15px] tracking-normal text-muted sm:text-[17px]">
+            <span className="font-mono text-[15px] tracking-normal text-brand-text sm:text-[18px]">
               {monthYear}
             </span>
           </h2>
-          <p className="mt-1.5 flex min-h-5 items-center gap-1.5 text-[13px] text-muted">
+          <p className="mt-2 flex min-h-5 items-center gap-2 text-[13px] text-muted">
             {isFetching ? (
               <>
-                <span className="h-1.5 w-1.5 animate-ping rounded-full bg-brand" />
-                Syncing
+                <span className="h-2 w-2 animate-ping rounded-full bg-brand-glow" />
+                <span className="text-brand-text">Syncing ledger...</span>
               </>
             ) : (
-              <>Swipe or use arrows to switch month</>
+              <>Swipe or use arrows · Tap any day</>
             )}
           </p>
         </div>
@@ -177,7 +184,7 @@ export function CalendarGrid({
         ))}
       </div>
 
-      <div className="relative -m-1 overflow-hidden p-1">
+      <div className="relative -m-1.5 overflow-hidden p-1.5">
         <LazyMotion features={loadDomAnimation} strict>
           <MotionConfig reducedMotion="user">
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>

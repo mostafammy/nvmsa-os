@@ -44,18 +44,18 @@ export function DayCell({
   const blockedInPlacement = isPlacementMode && (!canPlaceHere || Boolean(slot));
 
   let surfaceClass =
-    'border-line bg-surface hover:border-brand/55 hover:bg-brand-soft/25';
+    'border-line bg-elevated/70 hover:border-brand-glow/45 hover:bg-elevated';
   if (slot) {
-    surfaceClass = `${palette.cellSurface} ${palette.cellBorder} shadow-[0_1px_2px_rgb(20_32_30/0.05)]`;
+    surfaceClass = `${palette.cellSurface} ${palette.cellBorder} shadow-[0_6px_18px_-10px_rgb(0_0_0/0.75)] hover:brightness-125`;
   } else if (canPlaceHere) {
     surfaceClass =
-      'border-2 border-dashed border-brand bg-brand-soft/45 hover:bg-brand-soft/75';
+      'border-2 border-dashed border-brand-glow bg-brand-soft hover:bg-brand/25';
   } else if (isToday) {
     surfaceClass =
-      'border-brand/45 bg-brand-soft/35 hover:border-brand hover:bg-brand-soft/55';
+      'border-brand-glow/65 bg-brand-soft hover:border-brand-glow hover:bg-brand/25';
   } else if (isPast) {
     surfaceClass =
-      'border-transparent bg-sunken/65 hover:border-line hover:bg-sunken';
+      'border-white/[0.04] bg-sunken/50 hover:border-line hover:bg-sunken/80';
   }
 
   const stateLabel = slot
@@ -81,10 +81,14 @@ export function DayCell({
         }
       }}
       className={`group lift press relative flex min-h-[72px] flex-col items-start justify-between overflow-hidden rounded-[14px] border p-1.5 text-start sm:min-h-[96px] sm:rounded-2xl sm:p-2.5 ${surfaceClass} ${
-        !cell.inCurrentMonth ? 'opacity-45' : ''
-      } ${isFilteredOut ? 'opacity-25' : ''} ${
-        blockedInPlacement ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
-      } ${isToday ? 'ring-2 ring-brand ring-offset-2 ring-offset-surface' : ''}`}
+        !cell.inCurrentMonth ? 'opacity-40' : ''
+      } ${isFilteredOut ? 'opacity-20' : ''} ${
+        blockedInPlacement ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'
+      } ${
+        isToday
+          ? 'ring-2 ring-brand-glow/65 ring-offset-2 ring-offset-surface'
+          : ''
+      }`}
     >
       {slot && (
         <span
@@ -97,7 +101,7 @@ export function DayCell({
         <span
           className={`font-mono text-[13px] font-medium leading-none tabular-nums sm:text-[14px] ${
             isToday
-              ? 'inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white'
+              ? 'inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow-[0_0_16px_-2px_rgb(45_212_191/0.75)]'
               : isPast && !slot
                 ? 'text-muted'
                 : 'text-ink'
@@ -122,7 +126,7 @@ export function DayCell({
           viewer &&
           (!isPast || viewer.capabilities.canBackfillPastDates) && (
             <Plus
-              className="h-3.5 w-3.5 shrink-0 text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 group-hover:text-brand"
+              className="h-3.5 w-3.5 shrink-0 text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 group-hover:text-brand-text"
               aria-hidden="true"
             />
           )
@@ -144,7 +148,7 @@ export function DayCell({
           </p>
         </div>
       ) : canPlaceHere ? (
-        <span className="font-mono text-[12px] font-medium leading-none text-brand-strong">
+        <span className="font-mono text-[12px] font-medium leading-none text-brand-text">
           Place
         </span>
       ) : (
@@ -152,10 +156,10 @@ export function DayCell({
           aria-hidden="true"
           className={`h-1.5 w-1.5 rounded-full transition-colors duration-150 ${
             isToday
-              ? 'bg-brand'
+              ? 'bg-brand-glow animate-[var(--animate-pulse-dot)]'
               : isPast
                 ? 'bg-transparent'
-                : 'bg-ink/15 group-hover:bg-brand'
+                : 'bg-white/20 group-hover:bg-brand-glow'
           }`}
         />
       )}

@@ -40,8 +40,8 @@ export function RelocationDrawer({
       onClose={onClose}
     >
       {items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong bg-paper/60 px-6 py-10 text-center">
-          <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sunken text-ink-soft">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong bg-sunken/70 px-6 py-10 text-center">
+          <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-brand-glow/25 bg-brand-soft text-brand-text">
             <ArrowLeftRight className="h-5 w-5" />
           </div>
           <p className="text-[15px] font-medium text-ink">Queue is empty</p>
@@ -60,7 +60,7 @@ export function RelocationDrawer({
             return (
               <li
                 key={item.id}
-                className="relative space-y-3 overflow-hidden rounded-2xl border border-line bg-paper p-4"
+                className="relative space-y-3 overflow-hidden rounded-2xl border border-line bg-elevated/80 p-4"
               >
                 <span
                   aria-hidden="true"
@@ -82,7 +82,7 @@ export function RelocationDrawer({
                 {item.relocationReason && (
                   <p
                     dir="auto"
-                    className="ms-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950"
+                    className="ms-1 rounded-xl border border-amber-400/30 bg-amber-500/15 px-3 py-2 text-[13px] text-amber-100"
                   >
                     Reason: {item.relocationReason}
                   </p>
@@ -102,7 +102,7 @@ export function RelocationDrawer({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="w-11 !px-0 text-red-700 hover:bg-red-50 hover:text-red-800"
+                      className="w-11 !px-0 text-red-300 hover:bg-red-500/15 hover:text-red-200"
                       aria-label={`Cancel ${item.title}`}
                       disabled={isBusy}
                       onClick={() =>

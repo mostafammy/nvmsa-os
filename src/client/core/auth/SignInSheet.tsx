@@ -18,7 +18,6 @@ function isEmbeddedWebView(): boolean {
   return EMBEDDED_WEBVIEW_RE.test(navigator.userAgent);
 }
 
-// Official 4-colour Google "G" mark.
 function GoogleMark() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0">
@@ -76,10 +75,10 @@ export function SignInSheet({ open, onClose }: SignInSheetProps) {
     >
       {user ? (
         <div className="space-y-4">
-          <div className="space-y-2 rounded-2xl border border-line bg-paper p-4">
+          <div className="space-y-2 rounded-2xl border border-line bg-elevated/80 p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[16px] font-medium text-ink">{user.name}</p>
-              <Badge className="border-brand/25 bg-brand-soft text-brand-strong">
+              <Badge className="border-brand-glow/35 bg-brand-soft text-brand-text">
                 {user.tier === 'super_admin' ? 'System' : user.seatCode}
               </Badge>
             </div>
@@ -88,7 +87,7 @@ export function SignInSheet({ open, onClose }: SignInSheetProps) {
             {user.allowedOrgUnits.length > 0 && (
               <p className="pt-1 text-[13px] font-medium text-ink-soft">
                 Assigned Unit{user.allowedOrgUnits.length > 1 ? 's' : ''}:{' '}
-                <span className="font-mono">{user.allowedOrgUnits.join(', ')}</span>
+                <span className="font-mono text-brand-text">{user.allowedOrgUnits.join(', ')}</span>
               </p>
             )}
           </div>
@@ -109,12 +108,12 @@ export function SignInSheet({ open, onClose }: SignInSheetProps) {
           {authOutcome === 'seat_revoked' && (
             <div
               role="alert"
-              className="flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-[13px] text-amber-950"
+              className="flex gap-3 rounded-2xl border border-amber-400/35 bg-amber-500/15 p-3.5 text-[13px] text-amber-100"
             >
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" />
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
               <div className="space-y-1">
                 <p className="font-medium">Official seat inactive or reassigned</p>
-                <p className="leading-relaxed">
+                <p className="leading-relaxed text-amber-200/90">
                   This email no longer holds an active NVMSA Official Seat. Choose the newly
                   appointed official Gmail account below.
                 </p>
@@ -123,11 +122,11 @@ export function SignInSheet({ open, onClose }: SignInSheetProps) {
           )}
 
           {embeddedWebView && (
-            <div className="flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-[13px] text-amber-950">
-              <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" />
+            <div className="flex gap-3 rounded-2xl border border-amber-400/35 bg-amber-500/15 p-3.5 text-[13px] text-amber-100">
+              <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
               <div className="space-y-1">
                 <p className="font-medium">Open in Safari or Chrome</p>
-                <p className="leading-relaxed">
+                <p className="leading-relaxed text-amber-200/90">
                   Google blocks sign-in inside in-app browsers (WhatsApp, Instagram, Facebook).
                   Tap the menu button and choose <strong>Open in Browser</strong>.
                 </p>
@@ -138,7 +137,7 @@ export function SignInSheet({ open, onClose }: SignInSheetProps) {
           {error && (
             <div
               role="alert"
-              className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-800"
+              className="rounded-2xl border border-red-400/35 bg-red-500/15 px-4 py-3 text-[13px] font-medium text-red-100"
             >
               {error}
             </div>
@@ -146,11 +145,11 @@ export function SignInSheet({ open, onClose }: SignInSheetProps) {
 
           <p className="text-[14px] leading-relaxed text-ink-soft">
             Scheduling and governance require an allowlisted official NVMSA Google account (such as{' '}
-            <code className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[13px] text-ink">
+            <code className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[13px] text-brand-text">
               lpoo.nvmsa@gmail.com
             </code>{' '}
             or{' '}
-            <code className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[13px] text-ink">
+            <code className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[13px] text-brand-text">
               pnsdd.nvmsa@gmail.com
             </code>
             ).
@@ -161,7 +160,7 @@ export function SignInSheet({ open, onClose }: SignInSheetProps) {
             variant="secondary"
             disabled={redirecting}
             onClick={() => void handleGoogleSignIn()}
-            className="w-full bg-surface font-medium text-ink shadow-[0_1px_2px_rgb(20_32_30/0.06)]"
+            className="w-full !border-white/20 !bg-white !text-[#14201e] shadow-[0_8px_24px_-8px_rgb(0_0_0/0.6)] hover:!bg-slate-100"
           >
             <GoogleMark />
             <span>{redirecting ? 'Redirecting to Google...' : 'Continue with Google'}</span>

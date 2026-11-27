@@ -109,7 +109,7 @@ export function BottomSheet({ open, title, subtitle, onClose, children }: Bottom
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 backdrop-blur-[6px] sm:items-center sm:p-6"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 backdrop-blur-md sm:items-center sm:p-6"
           role="dialog"
           aria-modal="true"
           aria-label={title}
@@ -121,7 +121,7 @@ export function BottomSheet({ open, title, subtitle, onClose, children }: Bottom
             initial={{ y: 64, opacity: 0.9, scale: 0.985 }}
             animate={{ y: dragOffsetY, opacity: 1, scale: 1 }}
             transition={dragOffsetY > 0 ? { duration: 0 } : MOTION_SPRINGS.sheet}
-            className="safe-bottom flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-[28px] bg-surface shadow-[0_-12px_48px_-12px_rgb(20_32_30/0.35)] sm:rounded-[28px]"
+            className="safe-bottom flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-[28px] border border-line-strong bg-[#10181c] shadow-[0_-18px_64px_-12px_rgb(0_0_0/0.85),inset_0_1px_0_rgb(255_255_255/0.08)] sm:rounded-[28px]"
             onClick={(event) => event.stopPropagation()}
           >
             <div
@@ -131,7 +131,7 @@ export function BottomSheet({ open, title, subtitle, onClose, children }: Bottom
               onPointerCancel={handlePointerUp}
               className="flex cursor-grab touch-none justify-center pt-3 pb-1 active:cursor-grabbing sm:hidden"
             >
-              <div className="h-1.5 w-11 rounded-full bg-ink/15" />
+              <div className="h-1.5 w-11 rounded-full bg-white/20" />
             </div>
 
             <div className="flex items-start justify-between gap-3 px-6 pt-3 pb-4 sm:pt-6">
@@ -148,7 +148,7 @@ export function BottomSheet({ open, title, subtitle, onClose, children }: Bottom
                 type="button"
                 onClick={onClose}
                 aria-label="Close panel"
-                className="-me-2 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-sunken text-ink-soft transition-[transform,background-color] duration-150 hover:bg-ink/10 hover:text-ink active:scale-95"
+                className="-me-2 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/[0.08] text-ink-soft transition-[transform,background-color,color] duration-150 hover:bg-white/[0.15] hover:text-ink active:scale-95"
               >
                 <X className="h-5 w-5" />
               </button>

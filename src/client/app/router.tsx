@@ -42,7 +42,7 @@ class ModuleErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <section className="panel border-red-200 p-6 text-center">
+        <section className="panel border-red-400/35 p-6 text-center">
           <h2 className="font-display text-[20px] font-medium text-ink">
             {this.props.moduleName} failed to render
           </h2>

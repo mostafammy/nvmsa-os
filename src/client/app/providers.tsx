@@ -60,18 +60,18 @@ function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex flex-col items-center gap-2 px-4"
+        className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex flex-col items-center gap-2 px-4 lg:bottom-8"
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
             role="status"
-            className={`animate-toast pointer-events-auto rounded-full px-4 py-2.5 text-[13px] font-medium shadow-[0_12px_28px_-10px_rgb(20_32_30/0.45)] ${
+            className={`animate-toast pointer-events-auto rounded-full border px-4 py-2.5 text-[13px] font-medium shadow-[0_18px_40px_-10px_rgb(0_0_0/0.8)] backdrop-blur-xl ${
               toast.tone === 'error'
-                ? 'bg-red-700 text-white'
+                ? 'border-red-400/35 bg-red-700/95 text-white'
                 : toast.tone === 'success'
-                  ? 'bg-brand text-white'
-                  : 'bg-ink text-paper'
+                  ? 'border-brand-glow/35 bg-brand/95 text-white'
+                  : 'border-line-strong bg-elevated/95 text-ink'
             }`}
           >
             {toast.message}
@@ -101,7 +101,7 @@ function ServiceWorkerUpdateBanner() {
   return (
     <div
       role="status"
-      className="animate-toast fixed inset-x-4 top-[72px] z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-full border border-line-strong bg-ink py-2 ps-4 pe-2 text-[13px] font-medium text-paper shadow-[0_16px_36px_-12px_rgb(20_32_30/0.5)]"
+      className="animate-toast fixed inset-x-4 top-[72px] z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-full border border-brand-glow/35 bg-elevated/95 py-2 ps-4 pe-2 text-[13px] font-medium text-ink shadow-[0_18px_40px_-12px_rgb(0_0_0/0.85)] backdrop-blur-xl"
     >
       <span>A new NVMSA OS update is ready.</span>
       <button
@@ -110,7 +110,7 @@ function ServiceWorkerUpdateBanner() {
           waitingWorker.postMessage({ type: 'SKIP_WAITING' });
           window.location.reload();
         }}
-        className="press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-paper px-4 text-[13px] font-medium text-ink transition-colors hover:bg-sunken"
+        className="press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-brand px-4 text-[13px] font-medium text-white transition-colors hover:bg-brand-strong"
       >
         Reload
       </button>
