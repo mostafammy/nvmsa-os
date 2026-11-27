@@ -101,10 +101,10 @@ function OrgUnitPicker({
               type="button"
               aria-pressed={active}
               onClick={() => onChange(unit.id)}
-              className={`min-h-10 cursor-pointer rounded-[10px] text-[13px] font-medium transition-colors ${
+              className={`min-h-10 cursor-pointer rounded-[10px] text-[13px] transition-colors ${
                 active
-                  ? 'bg-brand text-white shadow-[0_0_14px_-4px_rgb(45_212_191/0.6)]'
-                  : 'text-ink-soft hover:bg-white/[0.06] hover:text-ink'
+                  ? 'bg-brand font-semibold text-brand-ink shadow-[0_0_14px_-4px_rgb(229_162_36/0.6)]'
+                  : 'font-medium text-ink-soft hover:bg-white/[0.06] hover:text-ink'
               }`}
             >
               {unit.code}

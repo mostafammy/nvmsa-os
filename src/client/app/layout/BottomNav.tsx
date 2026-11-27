@@ -30,7 +30,7 @@ export function BottomNav() {
         {/* Sliding pill indicator moved by transform alone */}
         <span
           aria-hidden="true"
-          className="absolute inset-y-1.5 start-1.5 rounded-full bg-brand shadow-[0_0_20px_-6px_rgb(45_212_191/0.75)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
+          className="absolute inset-y-1.5 start-1.5 rounded-full bg-brand shadow-[0_0_20px_-6px_rgb(229_162_36/0.65)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
           style={{
             width: `calc((100% - 0.75rem) / ${visibleModules.length})`,
             transform: `translateX(${activeIndex * 100}%)`,
@@ -44,7 +44,7 @@ export function BottomNav() {
               to={mod.route}
               className={({ isActive }) =>
                 `relative z-10 flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-medium transition-colors duration-200 active:scale-[0.97] ${
-                  isActive ? 'text-white' : 'text-ink-soft hover:text-ink'
+                  isActive ? 'text-brand-ink font-semibold' : 'text-ink-soft hover:text-ink'
                 }`
               }
             >

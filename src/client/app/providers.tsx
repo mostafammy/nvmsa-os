@@ -70,7 +70,7 @@ function ToastProvider({ children }: { children: ReactNode }) {
               toast.tone === 'error'
                 ? 'border-red-400/35 bg-red-700/95 text-white'
                 : toast.tone === 'success'
-                  ? 'border-brand-glow/35 bg-brand/95 text-white'
+                  ? 'border-brand-glow/45 bg-brand text-brand-ink font-semibold'
                   : 'border-line-strong bg-elevated/95 text-ink'
             }`}
           >
@@ -110,7 +110,7 @@ function ServiceWorkerUpdateBanner() {
           waitingWorker.postMessage({ type: 'SKIP_WAITING' });
           window.location.reload();
         }}
-        className="press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-brand px-4 text-[13px] font-medium text-white transition-colors hover:bg-brand-strong"
+        className="press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-brand px-4 text-[13px] font-semibold text-brand-ink transition-colors hover:bg-brand-strong"
       >
         Reload
       </button>

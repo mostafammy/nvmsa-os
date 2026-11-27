@@ -357,7 +357,7 @@ export function AdminPage() {
         >
           <span
             aria-hidden="true"
-            className="absolute inset-y-1 start-1 w-[calc(50%-0.25rem)] rounded-full bg-brand shadow-[0_0_18px_-6px_rgb(45_212_191/0.75)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
+            className="absolute inset-y-1 start-1 w-[calc(50%-0.25rem)] rounded-full bg-brand shadow-[0_0_18px_-6px_rgb(229_162_36/0.65)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
             style={{ transform: tab === 'units' ? 'translateX(100%)' : 'translateX(0%)' }}
           />
           <button
@@ -365,8 +365,8 @@ export function AdminPage() {
             role="tab"
             aria-selected={tab === 'seats'}
             onClick={() => setTab('seats')}
-            className={`relative z-10 min-h-11 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors ${
-              tab === 'seats' ? 'text-white' : 'text-muted hover:text-ink'
+            className={`relative z-10 min-h-11 cursor-pointer rounded-full px-4 text-[13px] transition-colors ${
+              tab === 'seats' ? 'font-semibold text-brand-ink' : 'font-medium text-muted hover:text-ink'
             }`}
           >
             Official Seats ({seatsQuery.data?.length ?? 13})
@@ -376,8 +376,8 @@ export function AdminPage() {
             role="tab"
             aria-selected={tab === 'units'}
             onClick={() => setTab('units')}
-            className={`relative z-10 min-h-11 cursor-pointer rounded-full px-4 text-[13px] font-medium transition-colors ${
-              tab === 'units' ? 'text-white' : 'text-muted hover:text-ink'
+            className={`relative z-10 min-h-11 cursor-pointer rounded-full px-4 text-[13px] transition-colors ${
+              tab === 'units' ? 'font-semibold text-brand-ink' : 'font-medium text-muted hover:text-ink'
             }`}
           >
             Org Units ({unitsQuery.data?.length ?? 11})

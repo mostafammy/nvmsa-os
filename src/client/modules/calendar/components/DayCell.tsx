@@ -101,7 +101,7 @@ export function DayCell({
         <span
           className={`font-mono text-[13px] font-medium leading-none tabular-nums sm:text-[14px] ${
             isToday
-              ? 'inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow-[0_0_16px_-2px_rgb(45_212_191/0.75)]'
+              ? 'inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand font-bold text-brand-ink shadow-[0_0_16px_-2px_rgb(229_162_36/0.75)]'
               : isPast && !slot
                 ? 'text-muted'
                 : 'text-ink'

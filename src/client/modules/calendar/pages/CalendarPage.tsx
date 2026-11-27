@@ -65,7 +65,7 @@ function OccupancyRing({
           cy="24"
           r={radius}
           fill="none"
-          stroke="#2dd4bf"
+          stroke="#f6c453"
           strokeWidth="3.5"
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -155,7 +155,7 @@ function TodaySpotlightCard({
             <p className="text-[13px] text-muted">Tap to inspect or book for Cairo today</p>
           </div>
         )}
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/25 text-brand-text transition-transform duration-150 group-hover:translate-x-0.5 group-hover:bg-brand group-hover:text-white">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/20 text-brand-text transition-transform duration-150 group-hover:translate-x-0.5 group-hover:bg-brand group-hover:text-brand-ink">
           {todaySlot ? <ArrowUpRight className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         </span>
       </button>
@@ -312,7 +312,7 @@ export function CalendarPage() {
         {uiState.kind === 'placingRelocation' && (
           <div
             role="status"
-            className="sticky top-[72px] z-20 flex items-center justify-between gap-3 rounded-2xl border border-brand-glow/50 bg-[#0b2321]/95 px-4 py-3 text-ink shadow-[0_18px_40px_-14px_rgb(0_0_0/0.85)] backdrop-blur-xl"
+            className="sticky top-[72px] z-20 flex items-center justify-between gap-3 rounded-2xl border border-brand-glow/50 bg-[#21180c]/95 px-4 py-3 text-ink shadow-[0_18px_40px_-14px_rgb(0_0_0/0.85)] backdrop-blur-xl"
           >
             <div className="flex min-w-0 items-center gap-3">
               <span
@@ -371,7 +371,7 @@ export function CalendarPage() {
           >
             <span
               aria-hidden="true"
-              className="absolute inset-y-1 start-1 w-[calc(50%-0.25rem)] rounded-full bg-brand shadow-[0_0_18px_-6px_rgb(45_212_191/0.75)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
+              className="absolute inset-y-1 start-1 w-[calc(50%-0.25rem)] rounded-full bg-brand shadow-[0_0_18px_-6px_rgb(229_162_36/0.65)] transition-transform duration-[240ms] ease-[var(--ease-enter)]"
               style={{
                 transform: effectiveViewMode === 'agenda' ? 'translateX(100%)' : 'translateX(0%)',
               }}
@@ -382,7 +382,7 @@ export function CalendarPage() {
               aria-label="Month grid view"
               aria-pressed={effectiveViewMode === 'grid'}
               className={`relative z-10 inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition-colors duration-150 ${
-                effectiveViewMode === 'grid' ? 'text-white' : 'text-muted hover:text-ink'
+                effectiveViewMode === 'grid' ? 'font-semibold text-brand-ink' : 'text-muted hover:text-ink'
               }`}
             >
               <CalendarDays className="h-4 w-4" />
@@ -395,7 +395,7 @@ export function CalendarPage() {
               aria-label="Agenda list view"
               aria-pressed={effectiveViewMode === 'agenda'}
               className={`relative z-10 inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${
-                effectiveViewMode === 'agenda' ? 'text-white' : 'text-muted hover:text-ink'
+                effectiveViewMode === 'agenda' ? 'font-semibold text-brand-ink' : 'text-muted hover:text-ink'
               }`}
             >
               <List className="h-4 w-4" />
@@ -436,10 +436,10 @@ export function CalendarPage() {
             data-unit-filter="ALL"
             aria-pressed={unitFilter === 'ALL'}
             onClick={() => setUnitFilter('ALL')}
-            className={`press inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border px-4 text-[13px] font-medium ${
+            className={`press inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border px-4 text-[13px] ${
               unitFilter === 'ALL'
-                ? 'border-brand-glow/55 bg-brand text-white shadow-[0_0_22px_-6px_rgb(45_212_191/0.75)]'
-                : 'border-line bg-surface/90 text-ink-soft hover:border-line-strong hover:text-ink'
+                ? 'border-brand-glow/65 bg-brand font-semibold text-brand-ink shadow-[0_0_22px_-6px_rgb(229_162_36/0.6)]'
+                : 'border-line bg-surface/90 font-medium text-ink-soft hover:border-line-strong hover:text-ink'
             }`}
           >
             All
@@ -454,15 +454,15 @@ export function CalendarPage() {
                 data-unit-filter={unit.id}
                 aria-pressed={active}
                 onClick={() => setUnitFilter(unit.id)}
-                className={`press inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border px-3.5 text-[13px] font-medium ${
+                className={`press inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border px-3.5 text-[13px] ${
                   active
-                    ? 'border-brand-glow/55 bg-brand text-white shadow-[0_0_22px_-6px_rgb(45_212_191/0.75)]'
-                    : 'border-line bg-surface/90 text-ink-soft hover:border-line-strong hover:text-ink'
+                    ? 'border-brand-glow/65 bg-brand font-semibold text-brand-ink shadow-[0_0_22px_-6px_rgb(229_162_36/0.6)]'
+                    : 'border-line bg-surface/90 font-medium text-ink-soft hover:border-line-strong hover:text-ink'
                 }`}
               >
                 <span
                   aria-hidden="true"
-                  className={`h-2 w-2 rounded-full ${active ? 'bg-white' : palette.dotClass}`}
+                  className={`h-2 w-2 rounded-full ${active ? 'bg-brand-ink' : palette.dotClass}`}
                 />
                 <span>{unit.code}</span>
               </button>
@@ -593,6 +593,14 @@ export function CalendarPage() {
 
       {/* Right Desktop Command Center Sidebar */}
       <aside className="animate-enter-delay hidden lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-5">
+        <div className="panel flex items-center justify-center border-brand-glow/25 bg-[#faf4e8] px-5 py-3.5 shadow-[0_18px_40px_-24px_rgb(229_162_36/0.45)]">
+          <img
+            src="/brand/nvmsa-horizontal.png"
+            alt="NVMSA — New Valley Medical Students' Association"
+            className="h-14 w-auto object-contain"
+          />
+        </div>
+
         <TodaySpotlightCard
           todayCairo={todayCairo}
           cairoTime={cairoTime}

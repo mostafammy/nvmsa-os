@@ -121,7 +121,7 @@ export function BottomSheet({ open, title, subtitle, onClose, children }: Bottom
             initial={{ y: 64, opacity: 0.9, scale: 0.985 }}
             animate={{ y: dragOffsetY, opacity: 1, scale: 1 }}
             transition={dragOffsetY > 0 ? { duration: 0 } : MOTION_SPRINGS.sheet}
-            className="safe-bottom flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-[28px] border border-line-strong bg-[#10181c] shadow-[0_-18px_64px_-12px_rgb(0_0_0/0.85),inset_0_1px_0_rgb(255_255_255/0.08)] sm:rounded-[28px]"
+            className="safe-bottom flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-[28px] border border-line-strong bg-[#14100d] shadow-[0_-18px_64px_-12px_rgb(0_0_0/0.85),inset_0_1px_0_rgb(255_241_214/0.08)] sm:rounded-[28px]"
             onClick={(event) => event.stopPropagation()}
           >
             <div

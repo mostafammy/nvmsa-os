@@ -105,6 +105,14 @@ export function SignInSheet({ open, onClose }: SignInSheetProps) {
         </div>
       ) : (
         <div className="space-y-4">
+          <div className="flex justify-center rounded-2xl border border-brand-glow/30 bg-[#faf4e8] px-4 py-3">
+            <img
+              src="/brand/nvmsa-horizontal.png"
+              alt="NVMSA — New Valley Medical Students' Association"
+              className="h-14 w-auto object-contain"
+            />
+          </div>
+
           {authOutcome === 'seat_revoked' && (
             <div
               role="alert"
