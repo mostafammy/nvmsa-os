@@ -59,6 +59,30 @@ const apiV1 = new Hono<AppEnv>()
   .route('/calendar', calendarRoutes)
   .route('/admin', adminRoutes);
 
+function resolveRedirectPath(pathname: string): string | null {
+  if (pathname === '/ar') {
+    return '/ar/';
+  }
+  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) {
+    return `/nvmsaOs${pathname}`;
+  }
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return `/nvmsaOs${pathname}`;
+  }
+  if (pathname === '/app' || pathname.startsWith('/app/')) {
+    return `/nvmsaOs${pathname.slice('/app'.length)}`;
+  }
+  const lower = pathname.toLowerCase();
+  if (
+    (lower === '/nvmsaos' || lower.startsWith('/nvmsaos/')) &&
+    pathname !== '/nvmsaOs' &&
+    !pathname.startsWith('/nvmsaOs/')
+  ) {
+    return `/nvmsaOs${pathname.slice('/nvmsaos'.length)}`;
+  }
+  return null;
+}
+
 const app = new Hono<AppEnv>()
   .use('/api/*', securityHeaders)
   .use('/api/*', requestLogger)
@@ -69,7 +93,21 @@ const app = new Hono<AppEnv>()
   })
   .route('/api/v1', apiV1)
   .get('*', async (c) => {
+    const url = new URL(c.req.url);
+    const redirectPath = resolveRedirectPath(url.pathname);
+    if (redirectPath) {
+      url.pathname = redirectPath;
+      return c.redirect(url.toString(), 301);
+    }
     if (c.env.ASSETS) {
+      // NVMSA OS SPA: every /nvmsaOs client route is served the /nvmsaOs/ shell directly.
+      if (
+        url.pathname === '/nvmsaOs' ||
+        (url.pathname.startsWith('/nvmsaOs/') && !/\.[a-z0-9]+$/i.test(url.pathname))
+      ) {
+        const shell = await c.env.ASSETS.fetch(new URL('/nvmsaOs/', c.req.url).toString());
+        return shell as unknown as Response;
+      }
       const assetRes = await c.env.ASSETS.fetch(c.req.url);
       return assetRes as unknown as Response;
     }
