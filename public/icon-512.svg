@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="108" fill="#0f766e" />
-  <text x="256" y="282" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="116" font-weight="800" fill="#ffffff" letter-spacing="5">NVMSA</text>
-  <text x="256" y="366" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="54" font-weight="600" fill="#99f6e4" letter-spacing="14">OS</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#0f766e" rx="108"/><text x="256" y="282" fill="#fff" font-family="system-ui, -apple-system, sans-serif" font-size="116" font-weight="800" letter-spacing="5" text-anchor="middle">NVMSA</text><text x="256" y="366" fill="#99f6e4" font-family="system-ui, -apple-system, sans-serif" font-size="54" font-weight="600" letter-spacing="14" text-anchor="middle">OS</text></svg>
