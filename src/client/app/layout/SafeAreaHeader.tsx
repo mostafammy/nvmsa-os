@@ -47,13 +47,17 @@ export function SafeAreaHeader({ title, subtitle }: SafeAreaHeaderProps) {
       <header className="safe-top sticky top-0 z-30 border-b border-line bg-paper/75 backdrop-blur-2xl backdrop-saturate-150">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3.5">
-            <span className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[13px] border border-brand-glow/45 bg-[#faf4e8] p-1 shadow-[0_0_24px_-6px_rgb(229_162_36/0.55)]">
+            <a
+              href="/"
+              title="Back to NVMSA public home"
+              className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[13px] border border-brand-glow/45 bg-[#faf4e8] p-1 shadow-[0_0_24px_-6px_rgb(229_162_36/0.55)] transition-transform duration-150 hover:scale-[1.03]"
+            >
               <img
                 src="/brand/nvmsa-emblem.png"
                 alt="NVMSA Hibis Temple"
                 className="h-full w-full object-contain"
               />
-            </span>
+            </a>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="truncate font-display text-[17px] font-medium leading-tight tracking-[-0.015em] text-ink">
