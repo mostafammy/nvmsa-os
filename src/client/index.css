@@ -1,5 +1,5 @@
 @import "tailwindcss" source("../");
-@source "../../index.html";
+@source "../../nvmsaOs/index.html";
 @import "@fontsource-variable/chivo/wght.css";
 @import "@fontsource/chivo-mono/latin-400.css";
 @import "@fontsource/chivo-mono/latin-500.css";
