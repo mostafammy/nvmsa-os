@@ -84,7 +84,7 @@ function ModuleGuard({
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/nvmsaOs">
       <Routes>
         <Route element={<MobileShell />}>
           <Route path="/" element={<Navigate to="/calendar" replace />} />
