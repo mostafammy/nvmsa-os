@@ -111,4 +111,42 @@ describe('HTTP & Security Boundaries (app.request)', () => {
     const res = await app.request('/api/v1/calendar/month?ym=2026-13', {}, createMockEnv());
     expect(res.status).toBe(400);
   });
+
+  it('redirects legacy calendar/admin/app/casing routes to /nvmsaOs and serves /nvmsaOs/ SPA shell', async () => {
+    const calRes = await app.request('/calendar?ym=2026-12', {}, createMockEnv());
+    expect(calRes.status).toBe(301);
+    expect(calRes.headers.get('Location')).toMatch(/\/nvmsaOs\/calendar\?ym=2026-12$/);
+
+    const adminRes = await app.request('/admin', {}, createMockEnv());
+    expect(adminRes.status).toBe(301);
+    expect(adminRes.headers.get('Location')).toMatch(/\/nvmsaOs\/admin$/);
+
+    const appLegacyRes = await app.request('/app/calendar', {}, createMockEnv());
+    expect(appLegacyRes.status).toBe(301);
+    expect(appLegacyRes.headers.get('Location')).toMatch(/\/nvmsaOs\/calendar$/);
+
+    const caseRes = await app.request('/nvmsaos/calendar', {}, createMockEnv());
+    expect(caseRes.status).toBe(301);
+    expect(caseRes.headers.get('Location')).toMatch(/\/nvmsaOs\/calendar$/);
+
+    const arRes = await app.request('/ar', {}, createMockEnv());
+    expect(arRes.status).toBe(301);
+    expect(arRes.headers.get('Location')).toMatch(/\/ar\/$/);
+
+    const fetchedUrls: string[] = [];
+    const mockAssets = {
+      async fetch(input: RequestInfo | URL) {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        fetchedUrls.push(url);
+        return new Response('<html><body>NVMSA OS</body></html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        });
+      },
+    } as unknown as Env['ASSETS'];
+
+    const appRes = await app.request('/nvmsaOs/calendar', {}, createMockEnv({ ASSETS: mockAssets }));
+    expect(appRes.status).toBe(200);
+    expect(fetchedUrls[0]).toMatch(/\/nvmsaOs\/$/);
+  });
 });
