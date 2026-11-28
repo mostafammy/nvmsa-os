@@ -1,5 +1,7 @@
-const CACHE_NAME = 'nvmsa-os-v2';
-const APP_SHELL = ['/', '/calendar', '/manifest.webmanifest'];
+const CACHE_NAME = 'nvmsa-os-v4';
+// NVMSA OS lives under /nvmsaOs; the public landing page (/, /ar/) is always network-first.
+const APP_SHELL = ['/nvmsaOs/', '/nvmsaOs/calendar', '/manifest.webmanifest'];
+const isAppPath = (pathname) => pathname === '/nvmsaOs' || pathname.startsWith('/nvmsaOs/');
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -31,6 +33,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
+    if (!isAppPath(url.pathname)) return;
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -43,8 +46,8 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           return (
             (await caches.match(request)) ||
-            (await caches.match('/calendar')) ||
-            (await caches.match('/'))
+            (await caches.match('/nvmsaOs/calendar')) ||
+            (await caches.match('/nvmsaOs/'))
           );
         }),
     );
