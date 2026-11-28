@@ -13,7 +13,23 @@
   ],
   "assets": {
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "404-page",
+    // The landing page is static (/, /ar/). NVMSA OS lives under /nvmsaOs and legacy
+    // routes (/calendar, /admin, /app, case-insensitive /nvmsaos) redirect via the Worker.
+    "run_worker_first": [
+      "/nvmsaOs",
+      "/nvmsaOs/*",
+      "/nvmsaos",
+      "/nvmsaos/*",
+      "/calendar",
+      "/calendar/*",
+      "/admin",
+      "/admin/*",
+      "/app",
+      "/app/*",
+      "/ar",
+      "/api/*"
+    ]
   },
   "d1_databases": [
     {
